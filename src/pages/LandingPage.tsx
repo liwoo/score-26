@@ -5,12 +5,8 @@ import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
 import { PopButton } from "../components/PopButton";
 import { TriondaBall } from "../components/TriondaBall";
-import {
-  ALLTIME_LEADERS,
-  DAY_LEADERS,
-  getMatchLeaders,
-  getStandings,
-} from "../data/leaderboard";
+import { getStandings } from "../data/leaderboard";
+import { useLeaderboard } from "../data/useLeaderboard";
 import { getMatches } from "../data/matches";
 import type { LeaderboardEntry } from "../data/types";
 
@@ -66,12 +62,7 @@ export function LandingPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [matchId, setMatchId] = useState(matches[0]?.id ?? "");
 
-  const top =
-    tab === "all"
-      ? ALLTIME_LEADERS
-      : tab === "day"
-      ? DAY_LEADERS
-      : getMatchLeaders(matchId);
+  const { data: top = [] } = useLeaderboard(tab, matchId);
   const standings = getStandings(top);
   const you = standings.find((e) => e.id === "me");
 

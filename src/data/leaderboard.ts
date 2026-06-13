@@ -1,5 +1,13 @@
 import type { LeaderboardEntry } from './types'
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SEED SOURCE for the Supabase `leaderboard` table. The app reads standings from
+// the DB via useLeaderboard(); these arrays are the placeholder data that was
+// loaded into it and are kept here so the table can be re-seeded if needed.
+// `getStandings` + `ME` below are still used client-side to pad the visible list
+// down to the player's own rank.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Overall, season-long leaders. */
 export const ALLTIME_LEADERS: LeaderboardEntry[] = [
   { id: 'a1', rank: 1, username: 'GoalGremlin', country: 'br', seed: 'Bingo', points: 1842, hits: 141 },
