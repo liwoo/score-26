@@ -122,23 +122,32 @@ export type MatchDay = {
   matches: Match[]
 }
 
-/** Local YYYY-MM-DD for a naive-ISO kickoff or a Date. */
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
+/**
+ * Hour (local) at which the "match day" rolls over. Games kicking off before
+ * this — e.g. a 00:00 fixture — belong to the *previous* day's slate, so they
+ * stay predictable the evening before (matching how football fixtures and their
+ * prediction windows actually work).
+ */
+const DAY_ROLLOVER_HOUR = 5
+
+/** Local YYYY-MM-DD of the match day a Date falls in (shifted by the rollover). */
+function matchDayKey(d: Date): string {
+  const shifted = new Date(d.getTime() - DAY_ROLLOVER_HOUR * 3_600_000)
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, '0')}-${String(
+    shifted.getDate(),
   ).padStart(2, '0')}`
 }
 
-/** Today's day key in the user's local timezone. */
+/** The current match day in the user's local timezone. */
 export function todayKey(): string {
-  return dayKey(new Date())
+  return matchDayKey(new Date())
 }
 
-/** Group fixtures by the user's local calendar day, ascending. */
+/** Group fixtures by the user's local match day, ascending. */
 export function getMatchDays(): MatchDay[] {
   const byDay = new Map<string, Match[]>()
   for (const m of getMatches()) {
-    const key = dayKey(new Date(m.kickoff)) // user-local day of the real instant
+    const key = matchDayKey(new Date(m.kickoff))
     const list = byDay.get(key)
     if (list) list.push(m)
     else byDay.set(key, [m])
