@@ -33,5 +33,6 @@ dist-ssr
 # in scraper/ to regenerate.
 scraper/
 
-# Generated squad data (derived from the scraper output)
-src/data/worldCup2026.ts
+# NOTE: src/data/worldCup2026.ts is intentionally TRACKED — it's a build-time
+# source dependency (static teams/matches/stadiums the app imports), not
+# disposable scraper output. Do not ignore it or fresh-clone / CI builds break.
