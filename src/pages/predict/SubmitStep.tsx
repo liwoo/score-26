@@ -170,6 +170,13 @@ export function SubmitStep() {
                 ))}
               </div>
             </div>
+          ) : scoredGoals.length === 0 ? (
+            <button
+              onClick={() => navigate('../timeline')}
+              className="mt-3 w-full rounded-2xl border-2 border-dashed border-ink/30 bg-cream px-3 py-3 text-center text-sm font-bold text-ink/55 active:bg-ink/5"
+            >
+              Scoreline only — tap to add goal times & scorers for bonus points ⚽
+            </button>
           ) : (
             <ul className="mt-3 space-y-1.5">
               {scoredGoals.map((g) => {

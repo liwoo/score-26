@@ -97,27 +97,24 @@ export function SettingsPage() {
                   const m = match!
                   const left = Math.max(0, MAX_PREDICTIONS - count)
                   return (
-                    <li
-                      key={m.id}
-                      className="flex items-center gap-3 border-b-2 border-ink/5 px-4 py-3 last:border-0"
-                    >
-                      <span className="text-xl">{m.home.flag}</span>
-                      <span className="text-xs font-extrabold text-ink/40">v</span>
-                      <span className="text-xl">{m.away.flag}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-display text-sm leading-tight">
-                          {m.home.code} v {m.away.code}
-                        </p>
-                        <p className="text-xs font-bold text-ink/50">
-                          {count}/{MAX_PREDICTIONS} predictions ·{' '}
-                          {left > 0 ? `${left} left` : 'all used'}
-                        </p>
-                      </div>
+                    <li key={m.id}>
                       <button
-                        onClick={() => navigate(`/play/${m.id}`)}
-                        className="rounded-full border-2 border-ink bg-sun px-3 py-1 font-display text-xs shadow-pop active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                        onClick={() => navigate(`/settings/match/${m.id}`)}
+                        className="flex w-full items-center gap-3 border-b-2 border-ink/5 px-4 py-3 text-left last:border-0 active:bg-cream"
                       >
-                        {left > 0 ? 'Play' : 'View'}
+                        <span className="text-xl">{m.home.flag}</span>
+                        <span className="text-xs font-extrabold text-ink/40">v</span>
+                        <span className="text-xl">{m.away.flag}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-display text-sm leading-tight">
+                            {m.home.code} v {m.away.code}
+                          </p>
+                          <p className="text-xs font-bold text-ink/50">
+                            {count}/{MAX_PREDICTIONS} predictions ·{' '}
+                            {left > 0 ? `${left} left` : 'all used'} · tap for details
+                          </p>
+                        </div>
+                        <span className="font-display text-xl text-ink/30">›</span>
                       </button>
                     </li>
                   )

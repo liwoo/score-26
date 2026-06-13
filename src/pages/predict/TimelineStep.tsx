@@ -15,7 +15,9 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Ball } from '../../components/Ball'
 import { PopButton } from '../../components/PopButton'
 import { GoalModal } from '../../components/GoalModal'
+import { TimelineGuideModal } from '../../components/TimelineGuideModal'
 import { BUCKETS } from '../../data/timeline'
+import { POINTS } from '../../lib/scoring'
 import type { Team } from '../../data/types'
 import {
   usePrediction,
@@ -116,12 +118,21 @@ export function TimelineStep() {
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editGoalId, setEditGoalId] = useState<string | null>(null)
+  // Show the "how the timeline works" guide on arrival.
+  const [showGuide, setShowGuide] = useState(true)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
 
   if (state.goals.length === 0) return <Navigate to=".." replace />
+
+  // Max bonus forfeited by submitting scoreline-only: timing+scorer+assist per
+  // goal, plus the perfect-prediction bonus.
+  const forfeitPoints =
+    (POINTS.goalTiming + POINTS.goalScorer + POINTS.goalAssister) *
+      state.goals.length +
+    POINTS.perfect
 
   const teamOf = (side: Side): Team => (side === 'home' ? match.home : match.away)
 
@@ -229,6 +240,13 @@ export function TimelineStep() {
           setEditGoalId(null)
         }}
         onClose={() => setEditGoalId(null)}
+      />
+
+      <TimelineGuideModal
+        open={showGuide}
+        forfeitPoints={forfeitPoints}
+        onContinue={() => setShowGuide(false)}
+        onSkip={() => navigate('../submit')}
       />
     </DndContext>
   )

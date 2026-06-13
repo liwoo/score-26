@@ -11,6 +11,7 @@ import { TimelineStep } from './pages/predict/TimelineStep'
 import { StatsStep } from './pages/predict/StatsStep'
 import { SubmitStep } from './pages/predict/SubmitStep'
 import { SettingsPage } from './pages/settings/SettingsPage'
+import { SubmissionDetailPage } from './pages/settings/SubmissionDetailPage'
 import { SignupPage } from './pages/settings/SignupPage'
 import { PolicyPage } from './pages/settings/PolicyPage'
 import { TermsPage } from './pages/settings/TermsPage'
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: '/matches', element: <MatchSelectPage /> },
       { path: '/done', element: <DonePage /> },
       { path: '/settings', element: <SettingsPage /> },
+      { path: '/settings/match/:matchId', element: <SubmissionDetailPage /> },
       { path: '/settings/signup', element: <SignupPage /> },
       { path: '/settings/policy', element: <PolicyPage /> },
       { path: '/settings/terms', element: <TermsPage /> },
