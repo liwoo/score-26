@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Screen } from '../../components/Screen'
@@ -8,6 +9,7 @@ import { getMatches } from '../../data/matches'
 import { MAX_PREDICTIONS } from '../../data/profile'
 import { getMyCounts } from '../../data/submissions'
 import { useAuth } from '../../features/auth/AuthProvider'
+import { notificationPermission, requestNotifications } from '../../lib/pwa'
 
 type LinkItem = { to: string; emoji: string; label: string; hint: string }
 
@@ -20,6 +22,7 @@ const LINKS: LinkItem[] = [
 export function SettingsPage() {
   const navigate = useNavigate()
   const { email, profile, signOut } = useAuth()
+  const [perm, setPerm] = useState(notificationPermission())
 
   const { data: counts = {} } = useQuery({
     queryKey: ['my-counts', email],
@@ -124,6 +127,39 @@ export function SettingsPage() {
           </div>
         </section>
 
+        {/* Notifications */}
+        <section>
+          <h2 className="px-1 pb-2 font-display text-lg">Notifications</h2>
+          <div className="flex items-center gap-3 rounded-3xl border-2 border-ink/10 bg-white px-4 py-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl border-2 border-ink/10 bg-cream text-lg">
+              🔔
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-base leading-tight">
+                Full-time results
+              </p>
+              <p className="text-xs font-bold text-ink/50">
+                {perm === 'granted'
+                  ? 'On — we’ll ping you when scores land'
+                  : perm === 'denied'
+                    ? 'Blocked — enable in your browser settings'
+                    : perm === 'unsupported'
+                      ? 'Not available on this device'
+                      : 'Get pinged when your match scores are in'}
+              </p>
+            </div>
+            {perm === 'default' && (
+              <button
+                onClick={async () => setPerm(await requestNotifications(true))}
+                className="rounded-full border-2 border-ink bg-sun px-3 py-1 font-display text-xs shadow-pop active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              >
+                Enable
+              </button>
+            )}
+            {perm === 'granted' && <span className="text-xl">✅</span>}
+          </div>
+        </section>
+
         {/* About & legal */}
         <section>
           <h2 className="px-1 pb-2 font-display text-lg">About</h2>
@@ -150,7 +186,7 @@ export function SettingsPage() {
         </section>
 
         <p className="pb-2 text-center text-xs font-bold text-ink/40">
-          Score26 · World Cup 2026 · v1.0
+          Score26 · World Cup 2026 · v{__APP_VERSION__}
         </p>
       </div>
     </Screen>

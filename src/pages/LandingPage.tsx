@@ -14,6 +14,7 @@ import {
 } from "../data/useLeaderboard";
 import { getMatches } from "../data/matches";
 import { useAuth } from "../features/auth/AuthProvider";
+import { requestNotifications } from "../lib/pwa";
 import type { LeaderboardEntry } from "../data/types";
 
 type Tab = "all" | "day" | "match";
@@ -72,10 +73,13 @@ export function LandingPage() {
 
   const SEEN_KEY = "score26:onboarded";
   const startPredicting = () => {
+    // Ask for notifications on this gesture (one-time, browser-compliant).
+    void requestNotifications();
     if (localStorage.getItem(SEEN_KEY)) navigate("/matches");
     else setHowTo(true);
   };
   const continueFromHowTo = () => {
+    void requestNotifications();
     localStorage.setItem(SEEN_KEY, "1");
     setHowTo(false);
     navigate("/matches");

@@ -6,6 +6,9 @@ import './index.css'
 import { router } from './router.tsx'
 import { queryClient } from './lib/queryClient.ts'
 import { AuthProvider } from './features/auth/AuthProvider.tsx'
+import { registerServiceWorker } from './lib/pwa.ts'
+
+registerServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
