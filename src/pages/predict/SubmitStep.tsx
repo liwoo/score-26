@@ -26,12 +26,26 @@ export function SubmitStep() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { state, match, scoreline, isDraw } = usePrediction()
-  const { email, profile, loading, signInWithGoogle, saveProfile } = useAuth()
+  const { user, email, profile, loading, signInWithGoogle, saveProfile } =
+    useAuth()
 
   // Profile-setup fields (only used by brand-new players).
   const [username, setUsername] = useState('')
   const [seedIdx, setSeedIdx] = useState(0)
   const [country, setCountry] = useState(COUNTRIES[0])
+
+  // Smoother setup: prefill the username from the Google account once.
+  const [prefilled, setPrefilled] = useState(false)
+  if (!prefilled && !profile && user && username === '') {
+    const meta = user.user_metadata ?? {}
+    const guess = String(meta.given_name || meta.name || meta.full_name || '')
+      .trim()
+      .split(' ')[0]
+      .replace(/[^A-Za-z0-9_]/g, '')
+      .slice(0, 16)
+    setPrefilled(true)
+    if (guess.length >= 3) setUsername(guess)
+  }
 
   // Squads (for resolving scorer/assist names) come from the API.
   const { data: homeSquad = [] } = useSquad(match.home.code)
@@ -46,7 +60,8 @@ export function SubmitStep() {
 
   const submitMut = useMutation({
     mutationFn: async () => {
-      // New player: create their profile first.
+      const newSignup = !profile
+      // New player: create their profile first (trigger seats them at 0 on the board).
       let prof: { username: string; avatarSeed: string; country: Country }
       if (profile) {
         prof = {
@@ -63,17 +78,21 @@ export function SubmitStep() {
         prof = { username: username.trim(), avatarSeed: SEEDS[seedIdx], country }
       }
       const n = await saveSubmission(email!, match, state)
-      return { n, prof }
+      return { n, prof, newSignup }
     },
-    onSuccess: ({ n, prof }) => {
+    onSuccess: ({ n, prof, newSignup }) => {
       clearDraft(match.id)
       qc.invalidateQueries({ queryKey: ['attempts', email, match.id] })
+      qc.invalidateQueries({ queryKey: ['leaderboard'] })
       navigate('/done', {
         state: {
           username: prof.username,
           seed: prof.avatarSeed,
           country: prof.country,
           predictionNo: n,
+          newSignup,
+          email,
+          matchLabel: `${match.home.name} v ${match.away.name}`,
         },
       })
     },

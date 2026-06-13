@@ -10,6 +10,9 @@ type DoneState = {
   seed?: string
   country?: { iso: string; name: string }
   predictionNo?: number
+  newSignup?: boolean
+  email?: string | null
+  matchLabel?: string
 }
 
 const CONFETTI = ['⚽', '🏆', '🎉', '🥅', '⭐', '🔥', '🎯', '🟡', '🟢']
@@ -19,6 +22,10 @@ export function DonePage() {
   const { state } = useLocation()
   const s = (state ?? {}) as DoneState
   const name = s.username || 'Champion'
+  const reachedLimit =
+    s.predictionNo != null && s.predictionNo >= MAX_PREDICTIONS
+  const triesLeft =
+    s.predictionNo != null ? MAX_PREDICTIONS - s.predictionNo : MAX_PREDICTIONS
 
   return (
     <div className="relative flex h-full flex-col items-center justify-center overflow-hidden px-6 text-center">
@@ -62,29 +69,55 @@ export function DonePage() {
         transition={{ delay: 0.2 }}
         className="relative mt-5 font-display text-4xl text-grass text-stroke-ink drop-shadow-[2px_2px_0_var(--color-ink)]"
       >
-        You're in!
+        {s.newSignup ? "You're all set!" : 'Locked in!'}
       </motion.h1>
       <p className="relative mt-2 flex items-center justify-center gap-2 font-display text-xl">
         {name}
         {s.country && <Flag iso={s.country.iso} size={22} shadow={false} />}
       </p>
       <p className="relative mt-1 max-w-xs text-sm font-bold text-ink/60">
-        Prediction locked. Points land as the goals fly in. Come back at
-        full-time to see how you did. ⚽
+        {s.newSignup
+          ? "Profile created and you're on the board at 0 — time to climb. 🚀"
+          : 'Prediction locked. Points land as the goals fly in. ⚽'}
       </p>
 
-      {s.predictionNo != null && (
-        <span className="relative mt-3 rounded-full border-2 border-ink bg-sun px-3 py-1 font-display text-sm shadow-pop">
-          {s.predictionNo >= MAX_PREDICTIONS
-            ? `Prediction ${s.predictionNo}/${MAX_PREDICTIONS} — that's your last for this match. We keep your best.`
-            : `Prediction ${s.predictionNo}/${MAX_PREDICTIONS} saved — you can refine it ${MAX_PREDICTIONS - s.predictionNo}× more.`}
-        </span>
-      )}
+      {/* Email-at-full-time promise */}
+      <div className="relative mt-4 w-full max-w-xs rounded-2xl border-2 border-ink bg-sky/25 px-4 py-3 shadow-pop">
+        <p className="text-sm font-bold text-ink/80">
+          📧 We'll email your total score at full-time
+          {s.matchLabel ? (
+            <>
+              {' '}
+              of <span className="font-display">{s.matchLabel}</span>
+            </>
+          ) : null}
+          .
+        </p>
+        {s.email && (
+          <p className="mt-0.5 truncate text-xs font-bold text-ink/45">
+            to {s.email}
+          </p>
+        )}
+      </div>
 
-      <div className="relative mt-8 flex w-full max-w-xs flex-col gap-3">
-        <PopButton variant="sun" full onClick={() => navigate('/matches')}>
-          🎯 Predict Another
+      {/* 3-predictions hint */}
+      <span className="relative mt-3 rounded-full border-2 border-ink bg-sun px-3 py-1 font-display text-sm shadow-pop">
+        {reachedLimit
+          ? `That's all 3 predictions for this match — we keep your best. 🎯`
+          : `Tip: up to ${MAX_PREDICTIONS} predictions per game${
+              s.predictionNo != null ? ` (${triesLeft} left)` : ''
+            } — we keep your best. 🎯`}
+      </span>
+
+      <div className="relative mt-7 flex w-full max-w-xs flex-col gap-3">
+        <PopButton variant="sun" full onClick={() => navigate('/settings')}>
+          📋 View My Submissions
         </PopButton>
+        {!reachedLimit && (
+          <PopButton variant="grass" full onClick={() => navigate('/matches')}>
+            🎯 Predict Another
+          </PopButton>
+        )}
         <PopButton variant="ghost" full onClick={() => navigate('/')}>
           🏆 View Leaderboard
         </PopButton>

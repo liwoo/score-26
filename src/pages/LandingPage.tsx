@@ -7,8 +7,13 @@ import { PopButton } from "../components/PopButton";
 import { TriondaBall } from "../components/TriondaBall";
 import { HowToPlayModal } from "../components/HowToPlayModal";
 import { mergeYou } from "../data/leaderboard";
-import { useLeaderboard, useLeaderboardMatchIds } from "../data/useLeaderboard";
+import {
+  useLeaderboard,
+  useLeaderboardMatchIds,
+  useMyScore,
+} from "../data/useLeaderboard";
 import { getMatches } from "../data/matches";
+import { useAuth } from "../features/auth/AuthProvider";
 import type { LeaderboardEntry } from "../data/types";
 
 type Tab = "all" | "day" | "match";
@@ -60,6 +65,7 @@ function LeaderRow({
 export function LandingPage() {
   const navigate = useNavigate();
   const matches = getMatches();
+  const { email, profile } = useAuth();
   const [tab, setTab] = useState<Tab>("all");
   const [matchId, setMatchId] = useState<string | null>(null);
   const [howTo, setHowTo] = useState(false);
@@ -88,11 +94,23 @@ export function LandingPage() {
   const { data: field = [], isLoading } = useLeaderboard(
     tab,
     activeMatchId ?? undefined,
+    email,
   );
+
+  // "You" — identity from the signed-in profile, points from real data (0 until
+  // signed in AND scored by the engine).
+  const { data: myScore } = useMyScore(tab, activeMatchId ?? undefined, email);
+  const youConfig = {
+    username: profile?.username ?? "You",
+    seed: profile?.avatarSeed ?? "Champion",
+    country: profile?.country.iso ?? "mw",
+    points: myScore?.points ?? 0,
+    hits: myScore?.hits ?? 0,
+  };
 
   // For the Match tab with no played match selected, there's nothing to rank.
   const hasField = tab !== "match" || !!activeMatchId;
-  const standings = hasField ? mergeYou(field, tab) : [];
+  const standings = hasField ? mergeYou(field, youConfig) : [];
   const you = standings.find((e) => e.id === "me");
   // Keep the list to the player's position + 10 (then it stops).
   const visible = you
