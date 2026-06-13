@@ -5,8 +5,9 @@ import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
 import { PopButton } from "../components/PopButton";
 import { TriondaBall } from "../components/TriondaBall";
-import { getStandings } from "../data/leaderboard";
-import { useLeaderboard } from "../data/useLeaderboard";
+import { HowToPlayModal } from "../components/HowToPlayModal";
+import { mergeYou } from "../data/leaderboard";
+import { useLeaderboard, useLeaderboardMatchIds } from "../data/useLeaderboard";
 import { getMatches } from "../data/matches";
 import type { LeaderboardEntry } from "../data/types";
 
@@ -60,11 +61,43 @@ export function LandingPage() {
   const navigate = useNavigate();
   const matches = getMatches();
   const [tab, setTab] = useState<Tab>("all");
-  const [matchId, setMatchId] = useState(matches[0]?.id ?? "");
+  const [matchId, setMatchId] = useState<string | null>(null);
+  const [howTo, setHowTo] = useState(false);
 
-  const { data: top = [] } = useLeaderboard(tab, matchId);
-  const standings = getStandings(top);
+  const SEEN_KEY = "score26:onboarded";
+  const startPredicting = () => {
+    if (localStorage.getItem(SEEN_KEY)) navigate("/matches");
+    else setHowTo(true);
+  };
+  const continueFromHowTo = () => {
+    localStorage.setItem(SEEN_KEY, "1");
+    setHowTo(false);
+    navigate("/matches");
+  };
+  const closeHowTo = () => {
+    localStorage.setItem(SEEN_KEY, "1");
+    setHowTo(false);
+  };
+
+  // Only matches that have been played have a leaderboard.
+  const { data: playedIds = [] } = useLeaderboardMatchIds();
+  const playedMatches = matches.filter((m) => playedIds.includes(m.id));
+  const activeMatchId =
+    matchId && playedIds.includes(matchId) ? matchId : (playedMatches[0]?.id ?? null);
+
+  const { data: field = [], isLoading } = useLeaderboard(
+    tab,
+    activeMatchId ?? undefined,
+  );
+
+  // For the Match tab with no played match selected, there's nothing to rank.
+  const hasField = tab !== "match" || !!activeMatchId;
+  const standings = hasField ? mergeYou(field, tab) : [];
   const you = standings.find((e) => e.id === "me");
+  // Keep the list to the player's position + 10 (then it stops).
+  const visible = you
+    ? standings.slice(0, Math.min(standings.length, you.rank + 10))
+    : standings;
 
   return (
     <div className="flex h-full flex-col">
@@ -135,11 +168,11 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Match picker — only for the Match tab */}
-          {tab === "match" && (
+          {/* Match picker — only played matches have a leaderboard */}
+          {tab === "match" && playedMatches.length > 0 && (
             <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto px-3 pb-1">
-              {matches.map((m) => {
-                const active = m.id === matchId;
+              {playedMatches.map((m) => {
+                const active = m.id === activeMatchId;
                 return (
                   <button
                     key={m.id}
@@ -159,14 +192,22 @@ export function LandingPage() {
 
           {/* fills the card; scroll down to your rank and 10 places past it */}
           <ul className="no-scrollbar mt-2 min-h-0 flex-1 overflow-y-auto">
-            {standings.map((e, i) => (
-              <LeaderRow
-                key={`${tab}-${matchId}-${e.id}`}
-                e={e}
-                i={i}
-                highlight={e.id === "me"}
-              />
-            ))}
+            {tab === "match" && !activeMatchId ? (
+              <li className="px-4 py-10 text-center text-sm font-bold text-ink/40">
+                {isLoading
+                  ? "Loading…"
+                  : "🔒 Match leaderboards open once the game kicks off."}
+              </li>
+            ) : (
+              visible.map((e, i) => (
+                <LeaderRow
+                  key={`${tab}-${activeMatchId}-${e.id}`}
+                  e={e}
+                  i={i}
+                  highlight={e.id === "me"}
+                />
+              ))
+            )}
           </ul>
 
           {/* Your standing — always visible */}
@@ -195,12 +236,24 @@ export function LandingPage() {
             variant="coral"
             full
             className="text-2xl"
-            onClick={() => navigate("/matches")}
+            onClick={startPredicting}
           >
             ⚡ Start Predicting
           </PopButton>
         </motion.div>
+        <button
+          onClick={() => setHowTo(true)}
+          className="mx-auto mt-2 block text-xs font-bold text-ink/50 underline-offset-2 hover:underline"
+        >
+          ℹ️ How it works · ~3 min
+        </button>
       </div>
+
+      <HowToPlayModal
+        open={howTo}
+        onContinue={continueFromHowTo}
+        onClose={closeHowTo}
+      />
     </div>
   );
 }
