@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -18,8 +18,10 @@ import { GoalModal } from '../../components/GoalModal'
 import { TimelineGuideModal } from '../../components/TimelineGuideModal'
 import { BUCKETS } from '../../data/timeline'
 import { POINTS } from '../../lib/scoring'
+import { useSquad } from '../../data/useSquad'
 import type { Team } from '../../data/types'
 import {
+  NO_ASSIST,
   usePrediction,
   type GoalPick,
   type Side,
@@ -28,23 +30,32 @@ import {
 function DraggableBall({
   goal,
   team,
+  numberById,
   onTap,
 }: {
   goal: GoalPick
   team: Team
+  /** Player id → jersey number, from the loaded squads. */
+  numberById: Map<string, number>
   onTap?: () => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: goal.id,
   })
-  const scorer = team.squad.find((p) => p.id === goal.scorerId)
+  const scorerNo = goal.scorerId ? numberById.get(goal.scorerId) : undefined
+  // NO_ASSIST = solo goal, so there's no assister jersey to show.
+  const assistNo =
+    goal.assistId && goal.assistId !== NO_ASSIST
+      ? numberById.get(goal.assistId)
+      : undefined
   const complete = goal.scorerId != null && goal.assistId != null
   // ? = needs scorer, orange number = scorer set/assist pending, green = done
-  const badgeColor = !scorer
-    ? 'bg-sun text-ink'
-    : complete
-      ? 'bg-grass text-white'
-      : 'bg-tangerine text-ink'
+  const badgeColor =
+    goal.scorerId == null
+      ? 'bg-sun text-ink'
+      : complete
+        ? 'bg-grass text-white'
+        : 'bg-tangerine text-ink'
   return (
     <button
       ref={setNodeRef}
@@ -55,11 +66,21 @@ function DraggableBall({
       style={{ opacity: isDragging ? 0 : 1 }}
     >
       <Ball iso={team.iso} size={48} />
-      {/* scorer + assist status badge */}
-      <span
-        className={`absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border-2 border-ink text-[10px] font-extrabold ${badgeColor}`}
-      >
-        {scorer ? scorer.number : '?'}
+      {/* assist jersey (small, muted) + scorer jersey (prominent) */}
+      <span className="absolute -bottom-1 -right-1 flex items-center gap-0.5">
+        {assistNo != null && (
+          <span
+            title="Assist"
+            className="grid size-4 place-items-center rounded-full border border-ink bg-white text-[8px] font-extrabold leading-none text-ink/70"
+          >
+            {assistNo}
+          </span>
+        )}
+        <span
+          className={`grid size-5 place-items-center rounded-full border-2 border-ink text-[10px] font-extrabold leading-none ${badgeColor}`}
+        >
+          {scorerNo ?? '?'}
+        </span>
       </span>
     </button>
   )
@@ -120,6 +141,16 @@ export function TimelineStep() {
   const [editGoalId, setEditGoalId] = useState<string | null>(null)
   // Show the "how the timeline works" guide on arrival.
   const [showGuide, setShowGuide] = useState(true)
+
+  // Squads (cached from the goal picker) let the balls show jersey numbers —
+  // the static team.squad is empty in the prediction flow.
+  const { data: homeSquad = [] } = useSquad(match.home.code)
+  const { data: awaySquad = [] } = useSquad(match.away.code)
+  const numberById = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const p of [...homeSquad, ...awaySquad]) m.set(p.id, p.number)
+    return m
+  }, [homeSquad, awaySquad])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -196,6 +227,7 @@ export function TimelineStep() {
                     key={g.id}
                     goal={g}
                     team={teamOf(g.side)}
+                    numberById={numberById}
                     onTap={() => setEditGoalId(g.id)}
                   />
                 ))}
@@ -210,6 +242,7 @@ export function TimelineStep() {
         <TrayAndSubmit
           unplaced={unplaced}
           teamOf={teamOf}
+          numberById={numberById}
           allPlaced={allPlaced}
           allScored={allScored}
           allAssisted={allAssisted}
@@ -255,6 +288,7 @@ export function TimelineStep() {
 function TrayAndSubmit({
   unplaced,
   teamOf,
+  numberById,
   allPlaced,
   allScored,
   allAssisted,
@@ -263,6 +297,7 @@ function TrayAndSubmit({
 }: {
   unplaced: GoalPick[]
   teamOf: (s: Side) => Team
+  numberById: Map<string, number>
   allPlaced: boolean
   allScored: boolean
   allAssisted: boolean
@@ -294,6 +329,7 @@ function TrayAndSubmit({
                 <DraggableBall
                   goal={g}
                   team={teamOf(g.side)}
+                  numberById={numberById}
                   onTap={() => onTapBall(g.id)}
                 />
               </motion.div>

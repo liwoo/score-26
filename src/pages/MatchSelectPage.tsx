@@ -90,16 +90,19 @@ function MatchCard({ match, i }: { match: Match; i: number }) {
 
 function DayTab({
   date,
-  state,
+  enabled,
+  selected,
+  glyph,
   onClick,
   innerRef,
 }: {
   date: Date
-  state: 'today' | 'past' | 'future'
+  enabled: boolean
+  selected: boolean
+  glyph: string
   onClick?: () => void
   innerRef?: (el: HTMLButtonElement | null) => void
 }) {
-  const enabled = state === 'today'
   const weekday = date.toLocaleDateString(undefined, { weekday: 'short' })
   const day = date.getDate()
   return (
@@ -108,18 +111,18 @@ function DayTab({
       disabled={!enabled}
       onClick={onClick}
       className={`flex w-14 shrink-0 flex-col items-center rounded-2xl border-2 border-ink py-1.5 transition-colors ${
-        enabled
+        selected
           ? 'bg-coral text-white shadow-pop'
-          : 'bg-white text-ink/30'
-      } ${state === 'past' ? 'opacity-50' : ''}`}
+          : enabled
+            ? 'bg-white text-ink'
+            : 'bg-white text-ink/30 opacity-60'
+      }`}
     >
       <span className="text-[10px] font-extrabold uppercase tracking-wide">
         {weekday}
       </span>
       <span className="font-display text-xl leading-none">{day}</span>
-      <span className="mt-0.5 text-[9px] font-bold">
-        {state === 'today' ? '●' : state === 'past' ? '✓' : '🔒'}
-      </span>
+      <span className="mt-0.5 text-[9px] font-bold">{glyph}</span>
     </button>
   )
 }
@@ -129,14 +132,22 @@ export function MatchSelectPage() {
   const days = getMatchDays()
   const today = todayKey()
 
-  // The actionable day is today; if today has no fixtures, fall back to the
-  // nearest upcoming day so the page is never a dead end.
-  const activeKey =
-    days.find((d) => d.key === today)?.key ??
-    days.find((d) => d.key >= today)?.key ??
+  // Both today's slate and the next fixture day ("tomorrow") are predictable —
+  // you can get ahead and lock in tomorrow's games from today. Anything further
+  // out stays locked.
+  const tomorrowKey = days.find((d) => d.key > today)?.key
+  const selectableKeys = new Set(
+    [today, tomorrowKey].filter(
+      (k): k is string => !!k && days.some((d) => d.key === k),
+    ),
+  )
+  // Default to today if it has fixtures, else the nearest upcoming day.
+  const defaultKey =
+    (days.some((d) => d.key === today) ? today : undefined) ??
+    tomorrowKey ??
     days[days.length - 1]?.key
 
-  const [selected] = useState(activeKey)
+  const [selected, setSelected] = useState(defaultKey)
   const selectedDay = days.find((d) => d.key === selected) ?? days[0]
 
   // Center the active day in the strip on mount.
@@ -159,14 +170,26 @@ export function MatchSelectPage() {
       {/* Day strip */}
       <div className="no-scrollbar flex gap-2 overflow-x-auto border-b-2 border-ink/10 px-4 py-3">
         {days.map((d) => {
-          const state: 'today' | 'past' | 'future' =
-            d.key === activeKey ? 'today' : d.key < today ? 'past' : 'future'
+          const enabled = selectableKeys.has(d.key)
+          const isSelected = d.key === selected
+          const glyph = isSelected
+            ? '●'
+            : enabled
+              ? '🔓'
+              : d.key < today
+                ? '✓'
+                : '🔒'
           return (
             <DayTab
               key={d.key}
               date={d.date}
-              state={state}
-              innerRef={state === 'today' ? (el) => (activeTabRef.current = el) : undefined}
+              enabled={enabled}
+              selected={isSelected}
+              glyph={glyph}
+              onClick={enabled ? () => setSelected(d.key) : undefined}
+              innerRef={
+                d.key === defaultKey ? (el) => (activeTabRef.current = el) : undefined
+              }
             />
           )
         })}

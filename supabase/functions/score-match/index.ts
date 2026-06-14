@@ -197,6 +197,12 @@ Deno.serve(async (req) => {
       .eq('match_id', matchId)
     if (csErr) throw csErr
 
+    // Roll the new points into the leaderboard (all / match / day scopes).
+    const { error: lbErr } = await db.rpc('recompute_leaderboard', {
+      p_match_id: matchId,
+    })
+    if (lbErr) throw lbErr
+
     // 6. Once everyone is calculated and someone still needs an email, hand off.
     const allCalculated = calc.length > 0 && calc.every((e) => e.calculated)
     const pendingEmails = calc.some((e) => !e.email_sent)
