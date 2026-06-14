@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light only" />
+    <title>Your match results</title>
+    <!--[if mso]><style>* { font-family: Arial, sans-serif !important; }</style><![endif]-->
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+      .display { font-family: 'Lilita One', 'Arial Black', 'Helvetica Neue', Arial, sans-serif; }
+      body { margin: 0; padding: 0; background: #fdf3df; -webkit-text-size-adjust: 100%; }
+      img { border: 0; line-height: 100%; outline: none; text-decoration: none; }
+      a { text-decoration: none; }
+      @media (max-width: 480px) {
+        .px { padding-left: 18px !important; padding-right: 18px !important; }
+        .score { font-size: 40px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#fdf3df;font-family:'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
+      {{badge_title}} · {{final_score}} · you scored {{points}} pts — {{match_rank_ordinal}} of {{players_in_match}}.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf3df;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;">
+
+            <!-- Header -->
+            <tr>
+              <td class="display" style="text-align:center;padding:4px 0 18px;">
+                <span style="font-size:30px;color:#1c1326;letter-spacing:.5px;">score</span><span style="font-size:30px;color:#1aa35a;">26</span>
+              </td>
+            </tr>
+
+            <!-- Hero card -->
+            <tr>
+              <td style="background:#1aa35a;border:3px solid #1c1326;border-radius:26px;box-shadow:4px 4px 0 0 #1c1326;overflow:hidden;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td class="px" style="padding:22px 28px 8px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="vertical-align:middle;">
+                            <img src="{{avatar_url}}" width="48" height="48" alt="" style="width:48px;height:48px;border-radius:50%;border:2px solid #1c1326;background:#fff;" />
+                          </td>
+                          <td style="vertical-align:middle;padding-left:12px;">
+                            <div class="display" style="color:#ffffff;font-size:18px;line-height:1;">Hey {{player_name}}!</div>
+                            <div style="color:#eafff2;font-size:13px;font-weight:800;padding-top:3px;">Full time — here's how you did.</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Scoreline -->
+                  <tr>
+                    <td class="px" style="padding:14px 28px 4px;text-align:center;">
+                      <div class="display score" style="color:#ffffff;font-size:50px;line-height:1;text-shadow:2px 2px 0 #1c1326;">
+                        {{home_emoji}} {{final_score}} {{away_emoji}}
+                      </div>
+                      <div class="display" style="color:#ffce3a;font-size:18px;letter-spacing:1px;padding-top:6px;">
+                        {{home_code}} <span style="color:#eafff2;">vs</span> {{away_code}}
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Badge -->
+                  <tr>
+                    <td style="padding:16px 28px 24px;text-align:center;">
+                      <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="background:#fdf3df;border:3px solid #1c1326;border-radius:20px;box-shadow:3px 3px 0 0 #1c1326;">
+                        <tr>
+                          <td style="padding:14px 22px;text-align:center;">
+                            <div style="font-size:40px;line-height:1;">{{badge_emoji}}</div>
+                            <div class="display" style="color:#1c1326;font-size:22px;line-height:1.1;padding-top:6px;">{{badge_title}}</div>
+                            <div style="color:#1c1326;opacity:.6;font-size:13px;font-weight:800;padding-top:3px;">{{badge_subtitle}}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Stat strip: points / rank / growth -->
+            <tr><td style="height:16px;line-height:16px;font-size:16px;">&nbsp;</td></tr>
+            <tr>
+              <td>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <!-- Points -->
+                    <td width="38%" style="vertical-align:top;padding-right:6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffce3a;border:3px solid #1c1326;border-radius:18px;box-shadow:3px 3px 0 0 #1c1326;">
+                        <tr><td style="padding:14px 10px;text-align:center;">
+                          <div class="display" style="color:#1c1326;font-size:34px;line-height:1;">{{points}}</div>
+                          <div style="color:#1c1326;opacity:.65;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding-top:4px;">points</div>
+                        </td></tr>
+                      </table>
+                    </td>
+                    <!-- Rank -->
+                    <td width="34%" style="vertical-align:top;padding:0 6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:3px solid #1c1326;border-radius:18px;box-shadow:3px 3px 0 0 #1c1326;">
+                        <tr><td style="padding:14px 6px;text-align:center;">
+                          <div class="display" style="color:#1c1326;font-size:34px;line-height:1;">{{match_rank_ordinal}}</div>
+                          <div style="color:#1c1326;opacity:.65;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding-top:4px;">of {{players_in_match}}</div>
+                        </td></tr>
+                      </table>
+                    </td>
+                    <!-- Growth -->
+                    <td width="28%" style="vertical-align:top;padding-left:6px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{{growth_bg}};border:3px solid #1c1326;border-radius:18px;box-shadow:3px 3px 0 0 #1c1326;">
+                        <tr><td style="padding:14px 6px;text-align:center;">
+                          <div class="display" style="color:{{growth_fg}};font-size:30px;line-height:1;">{{growth_caption}}{{growth_value}}</div>
+                          <div style="color:#1c1326;opacity:.65;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding-top:4px;">overall</div>
+                        </td></tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Your call -->
+            <tr><td style="height:14px;line-height:14px;font-size:14px;">&nbsp;</td></tr>
+            <tr>
+              <td style="text-align:center;">
+                <span style="display:inline-block;background:#5b2a86;color:#ffffff;border:3px solid #1c1326;border-radius:999px;box-shadow:3px 3px 0 0 #1c1326;font-weight:800;font-size:14px;padding:9px 18px;">
+                  🎯 Your call: <span class="display" style="color:#ffce3a;">{{your_call}}</span>
+                </span>
+              </td>
+            </tr>
+
+            <!-- Next match -->
+            <tr><td style="height:22px;line-height:22px;font-size:22px;">&nbsp;</td></tr>
+            <tr>
+              <td style="background:#2ec4f1;border:3px solid #1c1326;border-radius:22px;box-shadow:4px 4px 0 0 #1c1326;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr><td class="px" style="padding:18px 24px;text-align:center;">
+                    <div class="display" style="color:#1c1326;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;">⏭ Next up</div>
+                    <div class="display" style="color:#1c1326;font-size:26px;line-height:1.1;padding-top:8px;">
+                      {{next_home_emoji}} {{next_home_code}} <span style="opacity:.55;">vs</span> {{next_away_code}} {{next_away_emoji}}
+                    </div>
+                    <div style="color:#1c1326;font-weight:800;font-size:13px;padding-top:6px;">📍 {{next_kickoff}}</div>
+                    <div style="padding-top:14px;">
+                      <a href="{{next_match_url}}" class="display" style="display:inline-block;background:#ff5a5f;color:#ffffff;border:3px solid #1c1326;border-radius:999px;box-shadow:3px 3px 0 0 #1c1326;font-size:16px;padding:11px 26px;">Predict it ⚽</a>
+                    </div>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Secondary CTA -->
+            <tr><td style="height:18px;line-height:18px;font-size:18px;">&nbsp;</td></tr>
+            <tr>
+              <td style="text-align:center;">
+                <a href="{{settings_url}}" style="display:inline-block;background:#ffffff;color:#1c1326;border:2px solid #1c1326;border-radius:999px;font-weight:800;font-size:14px;padding:10px 22px;">View my submissions →</a>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr><td style="height:26px;line-height:26px;font-size:26px;">&nbsp;</td></tr>
+            <tr>
+              <td style="text-align:center;color:#1c1326;opacity:.5;font-size:12px;font-weight:700;line-height:1.6;">
+                You're getting this because you predicted this match on score26.<br />
+                <a href="{{help_url}}" style="color:#1c1326;text-decoration:underline;">Help</a>
+                &nbsp;·&nbsp;
+                <a href="{{settings_url}}" style="color:#1c1326;text-decoration:underline;">Settings</a>
+                &nbsp;·&nbsp;
+                <a href="{{unsubscribe_url}}" style="color:#1c1326;text-decoration:underline;">Unsubscribe</a>
+                <br /><br />
+                score26 · World Cup 2026 prediction game
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -36,3 +36,6 @@ scraper/
 # NOTE: src/data/worldCup2026.ts is intentionally TRACKED — it's a build-time
 # source dependency (static teams/matches/stadiums the app imports), not
 # disposable scraper output. Do not ignore it or fresh-clone / CI builds break.
+
+# Rendered email previews (generated from emails/*.html templates)
+emails/preview.*.html

@@ -16,6 +16,8 @@ import { SignupPage } from './pages/settings/SignupPage'
 import { PolicyPage } from './pages/settings/PolicyPage'
 import { TermsPage } from './pages/settings/TermsPage'
 import { HelpPage } from './pages/settings/HelpPage'
+import { AdminPage } from './pages/settings/AdminPage'
+import { AdminScorePage } from './pages/settings/AdminScorePage'
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +32,8 @@ export const router = createBrowserRouter([
       { path: '/settings/policy', element: <PolicyPage /> },
       { path: '/settings/terms', element: <TermsPage /> },
       { path: '/settings/help', element: <HelpPage /> },
+      { path: '/settings/admin', element: <AdminPage /> },
+      { path: '/settings/admin/:matchId', element: <AdminScorePage /> },
       {
         path: '/play/:matchId',
         element: <PredictionLayout />,

@@ -9,6 +9,7 @@ import { getMatches } from '../../data/matches'
 import { MAX_PREDICTIONS } from '../../data/profile'
 import { getMyCounts } from '../../data/submissions'
 import { useAuth } from '../../features/auth/AuthProvider'
+import { isAdmin } from '../../features/auth/admin'
 import { notificationPermission, requestNotifications } from '../../lib/pwa'
 
 type LinkItem = { to: string; emoji: string; label: string; hint: string }
@@ -80,6 +81,25 @@ export function SettingsPage() {
               {email ? '✨ Finish profile' : '⚡ Sign up'}
             </PopButton>
           </div>
+        )}
+
+        {/* Admin (single account only) */}
+        {isAdmin(email) && (
+          <button
+            onClick={() => navigate('/settings/admin')}
+            className="flex w-full items-center gap-3 rounded-3xl border-[3px] border-ink bg-grape/10 p-4 text-left shadow-pop-lg active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl border-2 border-ink bg-grape text-xl text-white">
+              ⚙️
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-lg leading-tight">Record Results</p>
+              <p className="text-xs font-bold text-ink/55">
+                Enter ended-match stats · score & notify players
+              </p>
+            </div>
+            <span className="font-display text-xl text-ink/30">›</span>
+          </button>
         )}
 
         {/* My Sessions */}
