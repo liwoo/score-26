@@ -1,6 +1,7 @@
 import { Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Screen } from '../../components/Screen'
+import { ShareButton } from '../../components/ShareButton'
 import { StepDots } from '../../features/prediction/PredictionLayout'
 import { usePrediction } from '../../features/prediction/PredictionContext'
 
@@ -28,7 +29,7 @@ export function MarginStep() {
     : `How many will ${winnerTeam?.name} score? 🥅`
 
   return (
-    <Screen title="The Margin" onBack={() => navigate(-1)}>
+    <Screen title="The Margin" onBack={() => navigate(-1)} right={<ShareButton />}>
       <StepDots step={1} total={4} />
       <p className="px-6 text-center font-display text-2xl leading-tight">
         {prompt}

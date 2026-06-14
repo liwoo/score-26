@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Screen } from '../../components/Screen'
+import { ShareButton } from '../../components/ShareButton'
 import { FlagBadge } from '../../components/FlagBadge'
 import type { Team } from '../../data/types'
 import { usePrediction } from '../../features/prediction/PredictionContext'
@@ -148,6 +149,7 @@ export function StatsStep() {
     <Screen
       title="Read the Game"
       onBack={() => navigate(-1)}
+      right={<ShareButton />}
       footer={
         <button
           onClick={() => navigate('../submit')}

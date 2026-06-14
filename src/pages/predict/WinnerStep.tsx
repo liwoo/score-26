@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Screen } from '../../components/Screen'
+import { ShareButton } from '../../components/ShareButton'
 import { FlagBadge } from '../../components/FlagBadge'
 import { StepDots } from '../../features/prediction/PredictionLayout'
 import {
@@ -52,7 +53,7 @@ export function WinnerStep() {
   ]
 
   return (
-    <Screen title="Your Call" onBack={() => navigate('/matches')}>
+    <Screen title="Your Call" onBack={() => navigate('/matches')} right={<ShareButton />}>
       <StepDots step={0} total={4} />
 
       {/* Fixture header */}

@@ -5,7 +5,6 @@ import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
 import { PopButton } from "../components/PopButton";
 import { TriondaBall } from "../components/TriondaBall";
-import { ShareButton } from "../components/ShareButton";
 import { HowToPlayModal } from "../components/HowToPlayModal";
 import { mergeYou } from "../data/leaderboard";
 import {
@@ -123,9 +122,9 @@ export function LandingPage() {
     : standings;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Hero */}
-      <div className="relative overflow-hidden bg-grass px-5 pb-8 pt-10 text-white">
+      <div className="relative shrink-0 overflow-hidden bg-grass px-5 pb-6 pt-9 text-white">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-20"
@@ -134,16 +133,13 @@ export function LandingPage() {
             backgroundSize: "18px 18px",
           }}
         />
-        <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-          <ShareButton />
-          <button
-            onClick={() => navigate("/settings")}
-            aria-label="Settings"
-            className="grid size-10 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-pop active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          >
-            <span className="text-xl leading-none">⚙️</span>
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/settings")}
+          aria-label="Settings"
+          className="absolute right-4 top-4 z-10 grid size-10 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-pop active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        >
+          <span className="text-xl leading-none">⚙️</span>
+        </button>
         <motion.div
           initial={{ scale: 0.7, rotate: -8, opacity: 0 }}
           animate={{ scale: 1, rotate: -3, opacity: 1 }}
@@ -253,7 +249,7 @@ export function LandingPage() {
       </div>
 
       {/* CTA — gently pulses to invite a tap */}
-      <div className="px-4 pb-5 pt-4">
+      <div className="shrink-0 px-4 pb-4 pt-3">
         <motion.div
           animate={{ scale: [1, 1.035, 1], y: [0, -4, 0] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}

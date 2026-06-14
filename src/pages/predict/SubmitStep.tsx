@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Screen } from '../../components/Screen'
+import { ShareButton } from '../../components/ShareButton'
 import { Avatar } from '../../components/Avatar'
 import { Flag } from '../../components/Flag'
 import { PopButton } from '../../components/PopButton'
@@ -110,7 +111,7 @@ export function SubmitStep() {
   const canSubmitNew = needsProfile ? username.trim().length >= 3 : true
 
   return (
-    <Screen title="Lock It In" onBack={() => navigate(-1)}>
+    <Screen title="Lock It In" onBack={() => navigate(-1)} right={<ShareButton />}>
       <div className="space-y-4 p-4">
         {/* Summary */}
         <div className="rounded-3xl border-[3px] border-ink bg-white p-4 shadow-pop-lg">
