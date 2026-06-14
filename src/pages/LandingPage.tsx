@@ -5,6 +5,7 @@ import { Avatar } from "../components/Avatar";
 import { Flag } from "../components/Flag";
 import { PopButton } from "../components/PopButton";
 import { TriondaBall } from "../components/TriondaBall";
+import { ShareButton } from "../components/ShareButton";
 import { HowToPlayModal } from "../components/HowToPlayModal";
 import { mergeYou } from "../data/leaderboard";
 import {
@@ -133,13 +134,16 @@ export function LandingPage() {
             backgroundSize: "18px 18px",
           }}
         />
-        <button
-          onClick={() => navigate("/settings")}
-          aria-label="Settings"
-          className="absolute right-4 top-4 z-10 grid size-10 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-pop active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-        >
-          <span className="text-xl leading-none">⚙️</span>
-        </button>
+        <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+          <ShareButton />
+          <button
+            onClick={() => navigate("/settings")}
+            aria-label="Settings"
+            className="grid size-10 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-pop active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          >
+            <span className="text-xl leading-none">⚙️</span>
+          </button>
+        </div>
         <motion.div
           initial={{ scale: 0.7, rotate: -8, opacity: 0 }}
           animate={{ scale: 1, rotate: -3, opacity: 1 }}

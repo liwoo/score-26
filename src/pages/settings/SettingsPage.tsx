@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Screen } from '../../components/Screen'
+import { ShareButton } from '../../components/ShareButton'
 import { Avatar } from '../../components/Avatar'
 import { Flag } from '../../components/Flag'
 import { PopButton } from '../../components/PopButton'
@@ -38,7 +39,7 @@ export function SettingsPage() {
     .filter((s) => s.match != null)
 
   return (
-    <Screen title="Settings" onBack={() => navigate('/')}>
+    <Screen title="Settings" onBack={() => navigate('/')} right={<ShareButton />}>
       <div className="space-y-4 p-4">
         {/* Account */}
         {profile ? (
