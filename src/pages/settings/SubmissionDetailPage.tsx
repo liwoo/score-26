@@ -4,9 +4,11 @@ import { PopButton } from '../../components/PopButton'
 import { getMatch } from '../../data/matches'
 import { MAX_PREDICTIONS } from '../../data/profile'
 import { useSquad } from '../../data/useSquad'
-import { predictionFromSubmission } from '../../data/scoringAdapters'
+import { predictionFromSubmission, resultFromRows } from '../../data/scoringAdapters'
+import { scoreSubmission } from '../../lib/scoring'
 import {
   useMatchResult,
+  useMatchResultGoals,
   useMySubmissions,
   type SubmissionRecord,
 } from '../../data/useSubmissionsDetail'
@@ -28,6 +30,7 @@ export function SubmissionDetailPage() {
 
   const { data: subs = [], isLoading } = useMySubmissions(matchId, email)
   const { data: result } = useMatchResult(matchId)
+  const { data: resultGoals = [] } = useMatchResultGoals(matchId)
   const { data: homeSquad = [] } = useSquad(match?.home.code)
   const { data: awaySquad = [] } = useSquad(match?.away.code)
   const playerById = new Map([...homeSquad, ...awaySquad].map((p) => [p.id, p]))
@@ -35,6 +38,22 @@ export function SubmissionDetailPage() {
   if (!match) return <Navigate to="/settings" replace />
 
   const scored = result?.status === 'finished'
+  // Rebuild the actual result so we can show how each attempt earned its points
+  // (the engine returns the line items; only the total is stored in the DB).
+  const matchResult =
+    scored && result?.outcome
+      ? resultFromRows(
+          {
+            outcome: result.outcome,
+            home_score: result.home_score,
+            away_score: result.away_score,
+            possession_home: result.possession_home,
+            shots_home: result.shots_home,
+            shots_away: result.shots_away,
+          },
+          resultGoals,
+        )
+      : null
   const bestPoints = scored ? Math.max(0, ...subs.map((s) => s.points)) : -1
   const canPlay = match.status === 'open' && subs.length < MAX_PREDICTIONS
 
@@ -44,6 +63,8 @@ export function SubmissionDetailPage() {
       .filter((g) => g.scorer_player_id != null)
       .sort((a, b) => a.bucket - b.bucket)
     const isBest = scored && rec.points === bestPoints && bestPoints > 0
+    // Per-line points breakdown (recomputed from the prediction + result).
+    const breakdown = matchResult ? scoreSubmission(p, matchResult) : null
 
     return (
       <div className="rounded-3xl border-[3px] border-ink bg-white p-4 shadow-pop-lg">
@@ -114,6 +135,39 @@ export function SubmissionDetailPage() {
             })}
           </ul>
         ) : null}
+
+        {breakdown && (
+          <div className="mt-3 rounded-2xl border-2 border-ink/10 bg-cream p-3">
+            <p className="pb-1.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
+              How you scored
+            </p>
+            {breakdown.lines.length === 0 ? (
+              <p className="py-1 text-center text-xs font-bold text-ink/45">
+                No points this time — better luck next match! ⚽
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {breakdown.lines.map((l) => (
+                  <li
+                    key={l.key}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-bold text-ink/70">
+                      {l.label}
+                    </span>
+                    <span className="shrink-0 rounded-full border-2 border-ink bg-grass px-2 py-px font-display text-xs text-white">
+                      +{l.points}
+                    </span>
+                  </li>
+                ))}
+                <li className="mt-1 flex items-center justify-between gap-2 border-t-2 border-ink/10 pt-1.5">
+                  <span className="font-display text-sm">Total</span>
+                  <span className="font-display text-sm">{breakdown.total} pts</span>
+                </li>
+              </ul>
+            )}
+          </div>
+        )}
 
         <p className="mt-2 text-center text-[11px] font-bold text-ink/35">
           Submitted {new Date(rec.created_at).toLocaleString()}

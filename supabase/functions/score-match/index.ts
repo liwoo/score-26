@@ -172,10 +172,10 @@ Deno.serve(async (req) => {
         s as unknown as SubmissionRow,
         (s.submission_goals ?? []) as GoalRow[],
       )
-      const { total } = scoreSubmission(pred, result)
+      const { total, lines } = scoreSubmission(pred, result)
       const { error: uErr } = await db
         .from('submissions')
-        .update({ points: total })
+        .update({ points: total, breakdown: lines })
         .eq('id', s.id)
       if (uErr) throw uErr
       scored++

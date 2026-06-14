@@ -57,6 +57,29 @@ export type MatchResultRecord = {
   shots_away: number | null
 }
 
+export type ResultGoalRow = {
+  side: 'home' | 'away'
+  bucket: number
+  scorer_player_id: number | null
+  assist_player_id: number | null
+}
+
+/** The actual goals of a finished match (for the scoring breakdown). */
+export function useMatchResultGoals(matchId: string | undefined) {
+  return useQuery({
+    queryKey: ['match-result-goals', matchId],
+    enabled: !!matchId,
+    queryFn: async (): Promise<ResultGoalRow[]> => {
+      const { data, error } = await supabase
+        .from('result_goals')
+        .select('side, bucket, scorer_player_id, assist_player_id')
+        .eq('match_id', Number(matchId))
+      if (error) throw error
+      return (data as ResultGoalRow[]) ?? []
+    },
+  })
+}
+
 /** The official result for a match, or null if none recorded yet. */
 export function useMatchResult(matchId: string | undefined) {
   return useQuery({

@@ -12,6 +12,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 type CalcEntry = { email: string; calculated: boolean; email_sent: boolean }
+type ScoreLine = { key: string; label: string; points: number }
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -72,6 +73,35 @@ const avatarUrl = (seed: string) =>
 
 function render(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_m, k) => vars[k] ?? '')
+}
+
+// Friendlier wording for the email's "how you scored" lines.
+const friendlyLine = (label: string): string =>
+  label
+    .replace(/ \((home|away)\)/g, '')
+    .replace('Goal scorer', 'Correct scorer')
+    .replace('Goal assist', 'Correct assister')
+    .replace('Correct goal distribution', 'Right goal spread')
+    .replace('Correct number of goals', 'Right number of goals')
+    .replace('Correct outcome', 'Right result')
+
+/** Render the scoring breakdown as inline-styled rows for the email. */
+function breakdownRowsHtml(lines: ScoreLine[], total: number): string {
+  const row = (label: string, right: string, dim = true) =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 7px;"><tr>` +
+    `<td style="font-size:14px;font-weight:700;color:#1c1326;${dim ? 'opacity:.85;' : ''}">${label}</td>` +
+    `<td align="right" style="white-space:nowrap;">${right}</td></tr></table>`
+  if (!lines.length)
+    return `<div style="text-align:center;font-weight:800;font-size:13px;color:#1c1326;opacity:.55;padding:4px 0;">No points this round — your comeback starts next match. ⚽</div>`
+  const pill = (p: number) =>
+    `<span style="display:inline-block;background:#1aa35a;color:#ffffff;border:2px solid #1c1326;border-radius:999px;font-weight:800;font-size:12px;padding:2px 9px;">+${p}</span>`
+  const items = lines.map((l) => row(friendlyLine(l.label), pill(l.points))).join('')
+  const totalRow = row(
+    `<span class="display" style="font-size:15px;">Total</span>`,
+    `<span class="display" style="font-size:15px;color:#1c1326;">${total} pts</span>`,
+    false,
+  )
+  return `${items}<div style="border-top:2px solid rgba(28,19,38,.12);margin:9px 0 7px;"></div>${totalRow}`
 }
 
 Deno.serve(async (req) => {
@@ -138,14 +168,21 @@ Deno.serve(async (req) => {
     // Best points + chosen outcome per player for THIS match (match ranking).
     const { data: matchSubs, error: msErr } = await db
       .from('submissions')
-      .select('email, points, outcome')
+      .select('email, points, outcome, breakdown')
       .eq('match_id', matchId)
     if (msErr) throw msErr
-    const bestHere = new Map<string, { points: number; outcome: string }>()
+    const bestHere = new Map<
+      string,
+      { points: number; outcome: string; breakdown: ScoreLine[] }
+    >()
     for (const s of matchSubs ?? []) {
       const cur = bestHere.get(s.email as string)
       if (!cur || (s.points ?? 0) > cur.points)
-        bestHere.set(s.email as string, { points: s.points ?? 0, outcome: s.outcome as string })
+        bestHere.set(s.email as string, {
+          points: s.points ?? 0,
+          outcome: s.outcome as string,
+          breakdown: (s.breakdown ?? []) as ScoreLine[],
+        })
     }
     const matchRanked = [...bestHere.entries()].sort((a, b) => b[1].points - a[1].points)
     const matchRankByEmail = new Map<string, number>(
@@ -226,6 +263,7 @@ Deno.serve(async (req) => {
         final_score: finalScore,
         your_call: CALL_LABEL(here?.outcome ?? '', oc.home_code, oc.away_code),
         points: String(here?.points ?? 0),
+        breakdown_rows: breakdownRowsHtml(here?.breakdown ?? [], here?.points ?? 0),
         match_rank_ordinal: ordinal(pos),
         players_in_match: String(totalInMatch),
         badge_emoji: b.emoji,
