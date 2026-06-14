@@ -32,12 +32,17 @@ function DraggableBall({
   team,
   numberById,
   onTap,
+  bounce = false,
+  bounceDelay = 0,
 }: {
   goal: GoalPick
   team: Team
   /** Player id → jersey number, from the loaded squads. */
   numberById: Map<string, number>
   onTap?: () => void
+  /** Subtly bob to signal "drag me" (used for unplaced tray balls). */
+  bounce?: boolean
+  bounceDelay?: number
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: goal.id,
@@ -65,23 +70,38 @@ function DraggableBall({
       className="relative touch-none"
       style={{ opacity: isDragging ? 0 : 1 }}
     >
-      <Ball iso={team.iso} size={48} />
-      {/* assist jersey (small, muted) + scorer jersey (prominent) */}
-      <span className="absolute -bottom-1 -right-1 flex items-center gap-0.5">
-        {assistNo != null && (
+      <motion.span
+        className="relative block"
+        animate={bounce ? { y: [0, -6, 0] } : { y: 0 }}
+        transition={
+          bounce
+            ? {
+                duration: 1.1,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: bounceDelay,
+              }
+            : { duration: 0.2 }
+        }
+      >
+        <Ball iso={team.iso} size={48} />
+        {/* assist jersey (small, muted) + scorer jersey (prominent) */}
+        <span className="absolute -bottom-1 -right-1 flex items-center gap-0.5">
+          {assistNo != null && (
+            <span
+              title="Assist"
+              className="grid size-4 place-items-center rounded-full border border-ink bg-white text-[8px] font-extrabold leading-none text-ink/70"
+            >
+              {assistNo}
+            </span>
+          )}
           <span
-            title="Assist"
-            className="grid size-4 place-items-center rounded-full border border-ink bg-white text-[8px] font-extrabold leading-none text-ink/70"
+            className={`grid size-5 place-items-center rounded-full border-2 border-ink text-[10px] font-extrabold leading-none ${badgeColor}`}
           >
-            {assistNo}
+            {scorerNo ?? '?'}
           </span>
-        )}
-        <span
-          className={`grid size-5 place-items-center rounded-full border-2 border-ink text-[10px] font-extrabold leading-none ${badgeColor}`}
-        >
-          {scorerNo ?? '?'}
         </span>
-      </span>
+      </motion.span>
     </button>
   )
 }
@@ -141,6 +161,8 @@ export function TimelineStep() {
   const [editGoalId, setEditGoalId] = useState<string | null>(null)
   // Show the "how the timeline works" guide on arrival.
   const [showGuide, setShowGuide] = useState(true)
+  // Tapping an un-placed (tray) ball pops a quick "drag me up" hint.
+  const [showDragHint, setShowDragHint] = useState(false)
 
   // Squads (cached from the goal picker) let the balls show jersey numbers —
   // the static team.squad is empty in the prediction flow.
@@ -246,7 +268,7 @@ export function TimelineStep() {
           allPlaced={allPlaced}
           allScored={allScored}
           allAssisted={allAssisted}
-          onTapBall={(id) => setEditGoalId(id)}
+          onTapBall={() => setShowDragHint(true)}
           onSubmit={() => navigate('../submit')}
         />
       </div>
@@ -280,6 +302,12 @@ export function TimelineStep() {
         forfeitPoints={forfeitPoints}
         onContinue={() => setShowGuide(false)}
         onSkip={() => navigate('../submit')}
+      />
+
+      <DragHintModal
+        open={showDragHint}
+        iso={match.home.iso}
+        onClose={() => setShowDragHint(false)}
       />
     </DndContext>
   )
@@ -317,7 +345,7 @@ function TrayAndSubmit({
       >
         <AnimatePresence mode="popLayout">
           {unplaced.length > 0 ? (
-            unplaced.map((g) => (
+            unplaced.map((g, i) => (
               <motion.div
                 key={g.id}
                 layout
@@ -330,6 +358,8 @@ function TrayAndSubmit({
                   goal={g}
                   team={teamOf(g.side)}
                   numberById={numberById}
+                  bounce
+                  bounceDelay={i * 0.15}
                   onTap={() => onTapBall(g.id)}
                 />
               </motion.div>
@@ -358,5 +388,88 @@ function TrayAndSubmit({
         {ready ? '✅ Submit Prediction' : 'Finish Your Picks'}
       </PopButton>
     </footer>
+  )
+}
+
+/**
+ * Quick "you have to drag, not tap" hint — shown when a player taps a ball that
+ * hasn't been dropped onto the timeline yet. Animates a ball swiping up into a
+ * time slot to demonstrate the gesture.
+ */
+function DragHintModal({
+  open,
+  iso,
+  onClose,
+}: {
+  open: boolean
+  iso: string
+  onClose: () => void
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="absolute inset-0 z-50 grid place-items-center p-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <button
+            aria-label="Close"
+            onClick={onClose}
+            className="absolute inset-0 bg-ink/55"
+          />
+          <motion.div
+            initial={{ scale: 0.85, y: 24, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 10, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            className="relative w-full max-w-xs rounded-[2rem] border-[3px] border-ink bg-cream p-5 text-center shadow-pop-xl"
+          >
+            <h2 className="font-display text-2xl leading-none">Drag it up! 👆</h2>
+
+            {/* animated swipe demo */}
+            <div className="relative mx-auto my-4 h-32 w-28">
+              {/* target time slot */}
+              <div className="absolute inset-x-0 top-0 mx-auto w-max rounded-xl border-2 border-dashed border-coral/70 px-3 py-2 font-display text-[11px] text-coral">
+                20–30'
+              </div>
+              {/* ball travelling up into the slot, looping */}
+              <motion.div
+                className="absolute inset-x-0 bottom-0 mx-auto w-12"
+                animate={{ y: [0, -72, -72, 0] }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  times: [0, 0.55, 0.82, 1],
+                }}
+              >
+                <div className="relative">
+                  <Ball iso={iso} size={48} />
+                  <motion.span
+                    className="absolute -bottom-2 -right-3 text-2xl"
+                    animate={{ rotate: [0, -14, 0] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    👆
+                  </motion.span>
+                </div>
+              </motion.div>
+            </div>
+
+            <p className="text-sm font-bold text-ink/60">
+              Press and <span className="text-ink">drag</span> each ball up onto the
+              minute window you think the goal is scored in — then tap it to pick
+              the scorer.
+            </p>
+
+            <PopButton variant="grass" full className="mt-5" onClick={onClose}>
+              Got it!
+            </PopButton>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
