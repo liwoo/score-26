@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
  */
 export function PhoneFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-grape">
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-grape">
       {/* layered arcade atmosphere */}
       <div
         aria-hidden
@@ -34,7 +34,7 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
         }}
       />
 
-      <div className="relative flex min-h-[100dvh] items-stretch justify-center sm:py-5">
+      <div className="relative flex h-[100dvh] items-stretch justify-center sm:py-5">
         <div
           className="relative flex h-[100dvh] w-full max-w-[440px] flex-col overflow-hidden bg-cream sm:h-[min(900px,calc(100dvh-2.5rem))] sm:rounded-[2.75rem] sm:border-[3px] sm:border-ink sm:shadow-pop-xl"
         >

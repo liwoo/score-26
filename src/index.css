@@ -37,6 +37,16 @@
     overscroll-behavior: none;
   }
 
+  /* The app shell owns its own height (100dvh) and all scrolling happens in
+     inner overflow containers — the document itself must never scroll, or the
+     pinned header/footer drift on mobile (height:100% vs dvh mismatch). */
+  html,
+  body {
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+  }
+
   /* Stop iOS text-size inflation and let the phone frame own the layout */
   * {
     -webkit-text-size-adjust: 100%;
