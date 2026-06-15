@@ -41,7 +41,15 @@ describe('predictionFromSubmission', () => {
       { outcome: 'home', winner_goals: 1, loser_goals: 0, possession_home: null, shots_home: null, shots_away: null },
       [{ side: 'home', bucket: 3, scorer_player_id: 10, assist_player_id: 7 }],
     )
-    expect(p.goals[0]).toEqual({ side: 'home', bucket: 3, scorerId: 10, assistId: 7 })
+    expect(p.goals[0]).toEqual({ side: 'home', bucket: 3, scorerId: 10, assistId: 7, ownGoal: false })
+  })
+
+  test('maps an own-goal row', () => {
+    const p = predictionFromSubmission(
+      { outcome: 'home', winner_goals: 1, loser_goals: 0, possession_home: null, shots_home: null, shots_away: null },
+      [{ side: 'home', bucket: 3, scorer_player_id: null, assist_player_id: null, own_goal: true }],
+    )
+    expect(p.goals[0]).toEqual({ side: 'home', bucket: 3, scorerId: null, assistId: null, ownGoal: true })
   })
 })
 

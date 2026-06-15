@@ -15,6 +15,7 @@ export type GoalRow = {
   bucket: number
   scorer_player_id: number | null
   assist_player_id: number | null
+  own_goal?: boolean | null
 }
 
 export type ResultRow = {
@@ -31,6 +32,7 @@ const toGoal = (r: GoalRow): GoalFact => ({
   bucket: r.bucket,
   scorerId: r.scorer_player_id,
   assistId: r.assist_player_id,
+  ownGoal: !!r.own_goal,
 })
 
 /** Derive home/away scores from outcome + winner/loser goals. */

@@ -60,7 +60,7 @@ export function SubmissionDetailPage() {
   const Attempt = ({ rec }: { rec: SubmissionRecord }) => {
     const p = predictionFromSubmission(rec, rec.submission_goals)
     const goals = [...rec.submission_goals]
-      .filter((g) => g.scorer_player_id != null)
+      .filter((g) => g.scorer_player_id != null || g.own_goal)
       .sort((a, b) => a.bucket - b.bucket)
     const isBest = scored && rec.points === bestPoints && bestPoints > 0
     // Per-line points breakdown (recomputed from the prediction + result).
@@ -124,10 +124,12 @@ export function SubmissionDetailPage() {
                   <span className="text-lg">{team.flag}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold leading-tight">
-                      ⚽ {scorer?.name ?? '—'}
+                      {g.own_goal ? '🙃 Own goal' : `⚽ ${scorer?.name ?? '—'}`}
                     </span>
                     <span className="block truncate text-xs font-bold text-ink/50">
-                      🅰️ {assister ? assister.name : 'solo goal'}
+                      {g.own_goal
+                        ? 'no assist'
+                        : `🅰️ ${assister ? assister.name : 'solo goal'}`}
                     </span>
                   </span>
                 </li>

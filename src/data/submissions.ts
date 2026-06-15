@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { NO_ASSIST } from '../features/prediction/PredictionContext'
+import { NO_ASSIST, OWN_GOAL } from '../features/prediction/PredictionContext'
 import type { Match } from './types'
 
 type PredictionState = {
@@ -89,15 +89,21 @@ export async function saveSubmission(
 
   const goalRows = state.goals
     .filter((g) => g.bucket != null && g.scorerId != null)
-    .map((g, i) => ({
-      submission_id: (sub as { id: string }).id,
-      side: g.side,
-      bucket: g.bucket,
-      scorer_player_id: g.scorerId ? Number(g.scorerId) : null,
-      assist_player_id:
-        g.assistId && g.assistId !== NO_ASSIST ? Number(g.assistId) : null,
-      seq: i,
-    }))
+    .map((g, i) => {
+      const ownGoal = g.scorerId === OWN_GOAL
+      return {
+        submission_id: (sub as { id: string }).id,
+        side: g.side,
+        bucket: g.bucket,
+        scorer_player_id: ownGoal || !g.scorerId ? null : Number(g.scorerId),
+        assist_player_id:
+          ownGoal || !g.assistId || g.assistId === NO_ASSIST
+            ? null
+            : Number(g.assistId),
+        own_goal: ownGoal,
+        seq: i,
+      }
+    })
 
   if (goalRows.length > 0) {
     const { error: goalsErr } = await supabase

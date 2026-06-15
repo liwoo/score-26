@@ -7,6 +7,7 @@ export type SubmissionGoalRow = {
   bucket: number
   scorer_player_id: number | null
   assist_player_id: number | null
+  own_goal?: boolean | null
   seq: number | null
 }
 
@@ -36,7 +37,7 @@ export function useMySubmissions(
       const { data, error } = await supabase
         .from('submissions')
         .select(
-          'id, attempt, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, points, created_at, submission_goals(side, bucket, scorer_player_id, assist_player_id, seq)',
+          'id, attempt, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, points, created_at, submission_goals(side, bucket, scorer_player_id, assist_player_id, own_goal, seq)',
         )
         .eq('email', email!)
         .eq('match_id', Number(matchId))
@@ -62,6 +63,7 @@ export type ResultGoalRow = {
   bucket: number
   scorer_player_id: number | null
   assist_player_id: number | null
+  own_goal?: boolean | null
 }
 
 /** The actual goals of a finished match (for the scoring breakdown). */
@@ -72,7 +74,7 @@ export function useMatchResultGoals(matchId: string | undefined) {
     queryFn: async (): Promise<ResultGoalRow[]> => {
       const { data, error } = await supabase
         .from('result_goals')
-        .select('side, bucket, scorer_player_id, assist_player_id')
+        .select('side, bucket, scorer_player_id, assist_player_id, own_goal')
         .eq('match_id', Number(matchId))
       if (error) throw error
       return (data as ResultGoalRow[]) ?? []

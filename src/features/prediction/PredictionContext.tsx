@@ -26,6 +26,9 @@ export type Outcome = Side | 'score-draw' | 'goalless-draw'
 /** Sentinel assist value meaning the goal was a solo effort (no assist). */
 export const NO_ASSIST = '__none__'
 
+/** Sentinel scorer value meaning an own goal — no named scorer, no assist. */
+export const OWN_GOAL = '__og__'
+
 export type GoalPick = {
   id: string
   side: Side
@@ -124,8 +127,14 @@ function reducer(state: State, action: Action): State {
             ? {
                 ...g,
                 scorerId: action.scorerId,
-                // a scorer can't also be their own assister
-                assistId: g.assistId === action.scorerId ? null : g.assistId,
+                // Own goals have no assist (auto-complete that step). Otherwise a
+                // scorer can't also be their own assister.
+                assistId:
+                  action.scorerId === OWN_GOAL
+                    ? NO_ASSIST
+                    : g.assistId === action.scorerId
+                      ? null
+                      : g.assistId,
               }
             : g,
         ),

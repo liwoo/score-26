@@ -12,8 +12,16 @@ import { useAuth } from '../../features/auth/AuthProvider'
 import { isAdmin } from '../../features/auth/admin'
 
 type Side = 'home' | 'away'
-type GoalRow = { side: Side; no: string; min: string; assistNo: string }
-type ScorerJson = { no: number; min: number; assist_no?: number | null }
+type GoalRow = { side: Side; no: string; min: string; assistNo: string; ownGoal: boolean }
+type ScorerJson = {
+  no?: number
+  min: number
+  assist_no?: number | null
+  own_goal?: boolean
+}
+
+/** Sentinel <option> value for the scorer dropdown meaning "own goal". */
+const OG_OPTION = '__og__'
 
 export function AdminScorePage() {
   const navigate = useNavigate()
@@ -59,9 +67,10 @@ export function AdminScorePage() {
     const toRows = (arr: ScorerJson[], side: Side): GoalRow[] =>
       (arr ?? []).map((g) => ({
         side,
-        no: String(g.no),
+        no: g.own_goal || g.no == null ? '' : String(g.no),
         min: String(g.min),
         assistNo: g.assist_no == null ? '' : String(g.assist_no),
+        ownGoal: !!g.own_goal,
       }))
     setPrefilledKey(matchId ?? null)
     setGoals([...toRows(existing.home_scorers, 'home'), ...toRows(existing.away_scorers, 'away')])
@@ -74,12 +83,16 @@ export function AdminScorePage() {
     mutationFn: async () => {
       const build = (side: Side): ScorerJson[] =>
         goals
-          .filter((g) => g.side === side && g.no !== '' && g.min !== '')
-          .map((g) => ({
-            no: Number(g.no),
-            min: Number(g.min),
-            assist_no: g.assistNo === '' ? null : Number(g.assistNo),
-          }))
+          .filter((g) => g.side === side && g.min !== '' && (g.ownGoal || g.no !== ''))
+          .map((g) =>
+            g.ownGoal
+              ? { min: Number(g.min), own_goal: true }
+              : {
+                  no: Number(g.no),
+                  min: Number(g.min),
+                  assist_no: g.assistNo === '' ? null : Number(g.assistNo),
+                },
+          )
       const { error } = await supabase.from('match_outcomes').upsert(
         {
           match_id: Number(matchId),
@@ -107,12 +120,13 @@ export function AdminScorePage() {
   if (!isAdmin(email)) return <Navigate to="/settings" replace />
   if (!match) return <Navigate to="/settings/admin" replace />
 
-  const homeCount = goals.filter((g) => g.side === 'home' && g.no && g.min).length
-  const awayCount = goals.filter((g) => g.side === 'away' && g.no && g.min).length
-  const incomplete = goals.some((g) => !g.no || !g.min)
+  const filled = (g: GoalRow) => !!g.min && (g.ownGoal || !!g.no)
+  const homeCount = goals.filter((g) => g.side === 'home' && filled(g)).length
+  const awayCount = goals.filter((g) => g.side === 'away' && filled(g)).length
+  const incomplete = goals.some((g) => !filled(g))
 
   const addGoal = (side: Side) =>
-    setGoals((g) => [...g, { side, no: '', min: '', assistNo: '' }])
+    setGoals((g) => [...g, { side, no: '', min: '', assistNo: '', ownGoal: false }])
   const update = (i: number, patch: Partial<GoalRow>) =>
     setGoals((g) => g.map((row, j) => (j === i ? { ...row, ...patch } : row)))
   const remove = (i: number) => setGoals((g) => g.filter((_, j) => j !== i))
@@ -323,8 +337,13 @@ function GoalEditor({
         <PlayerSelect
           label="Scorer"
           squad={squad}
-          value={row.no}
-          onChange={(no) => onChange({ no })}
+          value={row.ownGoal ? OG_OPTION : row.no}
+          onChange={(v) =>
+            v === OG_OPTION
+              ? onChange({ ownGoal: true, no: '', assistNo: '' })
+              : onChange({ ownGoal: false, no: v })
+          }
+          topOption={{ value: OG_OPTION, label: '🙃 Own goal' }}
         />
         <label className="block">
           <span className="block pb-1 text-[10px] font-extrabold uppercase tracking-wide text-ink/45">
@@ -339,15 +358,17 @@ function GoalEditor({
           />
         </label>
       </div>
-      <div className="mt-2">
-        <PlayerSelect
-          label="Assist (optional)"
-          squad={squad}
-          value={row.assistNo}
-          onChange={(assistNo) => onChange({ assistNo })}
-          allowNone
-        />
-      </div>
+      {!row.ownGoal && (
+        <div className="mt-2">
+          <PlayerSelect
+            label="Assist (optional)"
+            squad={squad}
+            value={row.assistNo}
+            onChange={(assistNo) => onChange({ assistNo })}
+            allowNone
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -358,12 +379,15 @@ function PlayerSelect({
   value,
   onChange,
   allowNone,
+  topOption,
 }: {
   label: string
   squad: Player[]
   value: string
   onChange: (v: string) => void
   allowNone?: boolean
+  /** Extra non-player option (e.g. "Own goal") shown above the squad. */
+  topOption?: { value: string; label: string }
 }) {
   return (
     <label className="block">
@@ -376,6 +400,7 @@ function PlayerSelect({
         className="w-full rounded-xl border-2 border-ink/20 bg-cream px-2 py-2 font-bold focus:border-ink focus:outline-none"
       >
         <option value="">{allowNone ? '— none —' : 'Pick player…'}</option>
+        {topOption && <option value={topOption.value}>{topOption.label}</option>}
         {squad.map((p) => (
           <option key={p.id} value={p.number}>
             #{p.number} {p.name}

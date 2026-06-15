@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { PlayerAvatar } from './PlayerAvatar'
 import type { Team } from '../data/types'
 import { useSquad } from '../data/useSquad'
-import { NO_ASSIST } from '../features/prediction/PredictionContext'
+import { NO_ASSIST, OWN_GOAL } from '../features/prediction/PredictionContext'
 
 const POS_COLOR: Record<string, string> = {
   GK: 'bg-sun',
@@ -49,6 +49,7 @@ export function GoalModal({
   }
 
   const scorer = squad.find((p) => p.id === scorerId) ?? null
+  const isOwnGoal = scorerId === OWN_GOAL
 
   return (
     <AnimatePresence>
@@ -96,23 +97,51 @@ export function GoalModal({
               <StepChip
                 active={step === 'scorer'}
                 label="⚽ Goal"
-                value={scorer?.name}
+                value={isOwnGoal ? 'Own goal' : scorer?.name}
                 onClick={() => setStep('scorer')}
               />
               <StepChip
                 active={step === 'assist'}
                 label="🅰️ Assist"
                 value={
-                  assistId === NO_ASSIST
-                    ? 'No assist'
-                    : (squad.find((p) => p.id === assistId)?.name ?? null)
+                  isOwnGoal
+                    ? '— none —'
+                    : assistId === NO_ASSIST
+                      ? 'No assist'
+                      : (squad.find((p) => p.id === assistId)?.name ?? null)
                 }
-                disabled={!scorerId}
-                onClick={() => scorerId && setStep('assist')}
+                disabled={!scorerId || isOwnGoal}
+                onClick={() => scorerId && !isOwnGoal && setStep('assist')}
               />
             </div>
 
             <ul className="no-scrollbar max-h-[54vh] divide-y-2 divide-ink/5 overflow-y-auto pb-2">
+              {/* Own-goal option, only on the scorer step (skips the assist step) */}
+              {step === 'scorer' && (
+                <li>
+                  <button
+                    onClick={() => {
+                      onPickScorer(OWN_GOAL)
+                      onClose()
+                    }}
+                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      isOwnGoal ? 'bg-grass/20' : 'active:bg-ink/5'
+                    }`}
+                  >
+                    <span className="grid size-[42px] place-items-center rounded-full border-2 border-ink bg-coral font-display text-sm text-white">
+                      OG
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-display text-base leading-tight">Own goal</p>
+                      <p className="text-xs font-bold text-ink/50">
+                        Nobody meant to — no assist
+                      </p>
+                    </div>
+                    {isOwnGoal && <span className="text-xl">✅</span>}
+                  </button>
+                </li>
+              )}
+
               {/* No-assist option, only on the assist step */}
               {step === 'assist' && (
                 <li>

@@ -22,6 +22,7 @@ import { useSquad } from '../../data/useSquad'
 import type { Team } from '../../data/types'
 import {
   NO_ASSIST,
+  OWN_GOAL,
   usePrediction,
   type GoalPick,
   type Side,
@@ -47,8 +48,11 @@ function DraggableBall({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: goal.id,
   })
-  const scorerNo = goal.scorerId ? numberById.get(goal.scorerId) : undefined
-  // NO_ASSIST = solo goal, so there's no assister jersey to show.
+  const isOwnGoal = goal.scorerId === OWN_GOAL
+  const scorerNo =
+    !isOwnGoal && goal.scorerId ? numberById.get(goal.scorerId) : undefined
+  const scorerLabel = isOwnGoal ? 'OG' : (scorerNo ?? '?')
+  // NO_ASSIST = solo goal (and own goals have no assist), so no assister jersey.
   const assistNo =
     goal.assistId && goal.assistId !== NO_ASSIST
       ? numberById.get(goal.assistId)
@@ -96,9 +100,11 @@ function DraggableBall({
             </span>
           )}
           <span
-            className={`grid size-5 place-items-center rounded-full border-2 border-ink text-[10px] font-extrabold leading-none ${badgeColor}`}
+            className={`grid size-5 place-items-center rounded-full border-2 border-ink font-extrabold leading-none ${badgeColor} ${
+              isOwnGoal ? 'text-[8px]' : 'text-[10px]'
+            }`}
           >
-            {scorerNo ?? '?'}
+            {scorerLabel}
           </span>
         </span>
       </motion.span>

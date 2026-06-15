@@ -33,6 +33,8 @@ export type GoalFact = {
   scorerId: number | null
   /** Player id, null = no assist (solo goal). */
   assistId: number | null
+  /** Own goal — no named scorer, no assist. Predicted/scored generically. */
+  ownGoal?: boolean
 }
 
 export type Prediction = {
@@ -67,6 +69,7 @@ export const POINTS = {
   goalTiming: 5,
   goalScorer: 5,
   goalAssister: 5,
+  ownGoal: 10, // correctly calling a goal is an own goal
   possessionTight: 10, // within 5 pts
   possessionClose: 5, // within 10 pts
   shotsTight: 7, // within 2 (per team)
@@ -76,17 +79,24 @@ export const POINTS = {
 
 const sortedPair = (a: number, b: number) => (a <= b ? [a, b] : [b, a])
 
-type Components = { timing: number; scorer: number; assister: number }
+type Components = { timing: number; scorer: number; assister: number; ownGoal: number }
 
 /** Value of pairing one predicted goal with one actual goal (same side). */
 function pairValue(p: GoalFact, a: GoalFact): Components {
   return {
     timing: p.bucket === a.bucket ? POINTS.goalTiming : 0,
+    // Normal scorer: same named player, and neither side an own goal.
     scorer:
-      p.scorerId != null && p.scorerId === a.scorerId ? POINTS.goalScorer : 0,
-    // Assist points require a real assister that was named correctly.
+      !p.ownGoal && !a.ownGoal && p.scorerId != null && p.scorerId === a.scorerId
+        ? POINTS.goalScorer
+        : 0,
+    // Own goal correctly called (both predicted and actual are own goals).
+    ownGoal: p.ownGoal && a.ownGoal ? POINTS.ownGoal : 0,
+    // Assist points require a real assister named correctly (own goals have none).
     assister:
-      a.assistId != null && p.assistId === a.assistId ? POINTS.goalAssister : 0,
+      !a.ownGoal && a.assistId != null && p.assistId === a.assistId
+        ? POINTS.goalAssister
+        : 0,
   }
 }
 
@@ -97,10 +107,11 @@ function pairValue(p: GoalFact, a: GoalFact): Components {
  */
 function matchSide(preds: GoalFact[], actuals: GoalFact[]): Components {
   const memo = new Map<string, Components & { total: number }>()
-  const value = (c: Components) => c.timing + c.scorer + c.assister
+  const value = (c: Components) => c.timing + c.scorer + c.assister + c.ownGoal
 
   function go(i: number, used: number): Components & { total: number } {
-    if (i === preds.length) return { timing: 0, scorer: 0, assister: 0, total: 0 }
+    if (i === preds.length)
+      return { timing: 0, scorer: 0, assister: 0, ownGoal: 0, total: 0 }
     const key = `${i}|${used}`
     const cached = memo.get(key)
     if (cached) return cached
@@ -116,6 +127,7 @@ function matchSide(preds: GoalFact[], actuals: GoalFact[]): Components {
         timing: v.timing + rest.timing,
         scorer: v.scorer + rest.scorer,
         assister: v.assister + rest.assister,
+        ownGoal: v.ownGoal + rest.ownGoal,
         total: value(v) + rest.total,
       }
       if (cand.total > best.total) best = cand
@@ -125,11 +137,12 @@ function matchSide(preds: GoalFact[], actuals: GoalFact[]): Components {
   }
 
   const r = go(0, 0)
-  return { timing: r.timing, scorer: r.scorer, assister: r.assister }
+  return { timing: r.timing, scorer: r.scorer, assister: r.assister, ownGoal: r.ownGoal }
 }
 
 /** Canonical key for a goal, for exact-match (perfect) comparison. */
-const goalKey = (g: GoalFact) => `${g.bucket}:${g.scorerId ?? 'x'}:${g.assistId ?? 'x'}`
+const goalKey = (g: GoalFact) =>
+  `${g.bucket}:${g.ownGoal ? 'OG' : (g.scorerId ?? 'x')}:${g.assistId ?? 'x'}`
 
 function goalsIdentical(a: GoalFact[], b: GoalFact[]): boolean {
   if (a.length !== b.length) return false
@@ -176,6 +189,8 @@ export function scoreSubmission(
       add(`timing-${side}`, `Goal timing ×${c.timing / POINTS.goalTiming} (${side})`, c.timing)
     if (c.scorer)
       add(`scorer-${side}`, `Goal scorer ×${c.scorer / POINTS.goalScorer} (${side})`, c.scorer)
+    if (c.ownGoal)
+      add(`og-${side}`, `Own goal ×${c.ownGoal / POINTS.ownGoal} (${side})`, c.ownGoal)
     if (c.assister)
       add(`assist-${side}`, `Goal assist ×${c.assister / POINTS.goalAssister} (${side})`, c.assister)
     if (!goalsIdentical(p, a)) goalsPerfect = false

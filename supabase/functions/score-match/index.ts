@@ -25,7 +25,12 @@ import {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-type ScorerEntry = { no?: number | null; min?: number | null; assist_no?: number | null }
+type ScorerEntry = {
+  no?: number | null
+  min?: number | null
+  assist_no?: number | null
+  own_goal?: boolean
+}
 type CalcEntry = { email: string; calculated: boolean; email_sent: boolean }
 
 /** Match minute → timeline bucket (0–10'=0 … 80–90'=8, 90'+=9). */
@@ -91,12 +96,16 @@ Deno.serve(async (req) => {
     const homeScorers = (oc.home_scorers ?? []) as ScorerEntry[]
     const awayScorers = (oc.away_scorers ?? []) as ScorerEntry[]
     const toGoals = (arr: ScorerEntry[], side: 'home' | 'away', teamId: number): GoalFact[] =>
-      arr.map((g) => ({
-        side,
-        bucket: minToBucket(Number(g.min)),
-        scorerId: resolve(teamId, g.no),
-        assistId: resolve(teamId, g.assist_no),
-      }))
+      arr.map((g) =>
+        g.own_goal
+          ? { side, bucket: minToBucket(Number(g.min)), scorerId: null, assistId: null, ownGoal: true }
+          : {
+              side,
+              bucket: minToBucket(Number(g.min)),
+              scorerId: resolve(teamId, g.no),
+              assistId: resolve(teamId, g.assist_no),
+            },
+      )
     const goals: GoalFact[] = [
       ...toGoals(homeScorers, 'home', homeTeamId),
       ...toGoals(awayScorers, 'away', awayTeamId),
@@ -139,16 +148,18 @@ Deno.serve(async (req) => {
         side: 'home',
         bucket: minToBucket(Number(g.min)),
         minute: g.min ?? null,
-        scorer_player_id: resolve(homeTeamId, g.no),
-        assist_player_id: resolve(homeTeamId, g.assist_no),
+        scorer_player_id: g.own_goal ? null : resolve(homeTeamId, g.no),
+        assist_player_id: g.own_goal ? null : resolve(homeTeamId, g.assist_no),
+        own_goal: !!g.own_goal,
       })),
       ...awayScorers.map((g) => ({
         match_id: matchId,
         side: 'away',
         bucket: minToBucket(Number(g.min)),
         minute: g.min ?? null,
-        scorer_player_id: resolve(awayTeamId, g.no),
-        assist_player_id: resolve(awayTeamId, g.assist_no),
+        scorer_player_id: g.own_goal ? null : resolve(awayTeamId, g.no),
+        assist_player_id: g.own_goal ? null : resolve(awayTeamId, g.assist_no),
+        own_goal: !!g.own_goal,
       })),
     ]
     if (goalRows.length) {
@@ -161,7 +172,7 @@ Deno.serve(async (req) => {
       .from('submissions')
       .select(
         'id, email, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, ' +
-          'submission_goals(side, bucket, scorer_player_id, assist_player_id)',
+          'submission_goals(side, bucket, scorer_player_id, assist_player_id, own_goal)',
       )
       .eq('match_id', matchId)
     if (sErr) throw sErr

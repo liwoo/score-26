@@ -13,6 +13,14 @@ const g = (
   assistId: number | null = null,
 ): GoalFact => ({ side, bucket, scorerId, assistId })
 
+const og = (side: 'home' | 'away', bucket: number): GoalFact => ({
+  side,
+  bucket,
+  scorerId: null,
+  assistId: null,
+  ownGoal: true,
+})
+
 const result = (over: Partial<MatchResult>): MatchResult => ({
   outcome: 'home',
   homeScore: 0,
@@ -109,5 +117,33 @@ describe('scoreSubmission', () => {
     })
     // 5+3+5+10 + goal1(5+5+5=15) + goal2(5+5+0=10, no assist) + 50 perfect = 98
     expect(scoreSubmission(p, r).total).toBe(98)
+  })
+
+  test('own goal: perfectly called (10 for OG, not 5)', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [og('home', 3)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [og('home', 3)] })
+    // 23 scoreline + timing 5 + own-goal 10 + perfect 50 = 88
+    expect(scoreSubmission(p, r).total).toBe(88)
+  })
+
+  test('own goal: right call, wrong bracket (no timing, no perfect)', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [og('home', 5)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [og('home', 3)] })
+    // 23 + own-goal 10 = 33
+    expect(scoreSubmission(p, r).total).toBe(33)
+  })
+
+  test('own goal predicted but it was a normal goal — no OG/scorer points', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [og('home', 3)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 3, 10, 7)] })
+    // 23 + timing 5 only (OG≠named scorer) = 28
+    expect(scoreSubmission(p, r).total).toBe(28)
+  })
+
+  test('normal scorer predicted but it was an own goal — no scorer/OG points', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 3, 10, 7)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [og('home', 3)] })
+    // 23 + timing 5 only = 28
+    expect(scoreSubmission(p, r).total).toBe(28)
   })
 })
