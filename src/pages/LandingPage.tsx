@@ -119,10 +119,8 @@ export function LandingPage() {
   const hasField = tab !== "match" || !!activeMatchId;
   const standings = hasField ? mergeYou(field, youConfig) : [];
   const you = standings.find((e) => e.id === "me");
-  // Keep the list to the player's position + 10 (then it stops).
-  const visible = you
-    ? standings.slice(0, Math.min(standings.length, you.rank + 10))
-    : standings;
+  // Show the whole field — everyone above and below the player, no cap.
+  const visible = standings;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -215,7 +213,7 @@ export function LandingPage() {
             </div>
           )}
 
-          {/* fills the card; scroll down to your rank and 10 places past it */}
+          {/* fills the card; scroll to your highlighted row — everyone below included */}
           <ul className="no-scrollbar mt-2 min-h-0 flex-1 overflow-y-auto">
             {tab === "match" && !activeMatchId ? (
               <li className="px-4 py-10 text-center text-sm font-bold text-ink/40">
