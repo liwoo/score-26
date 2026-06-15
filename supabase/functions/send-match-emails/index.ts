@@ -41,11 +41,28 @@ const CALL_LABEL = (outcome: string, homeCode: string, awayCode: string): string
   }
 }
 
-function badge(pos: number, total: number): {
-  emoji: string
-  title: string
-  subtitle: string
-} {
+function badge(
+  pos: number,
+  total: number,
+  points: number,
+  allZero: boolean,
+): { emoji: string; title: string; subtitle: string } {
+  // Nobody in the match scored — no winner, no podium.
+  if (allZero)
+    return {
+      emoji: '😅',
+      title: 'Nil-points round',
+      subtitle: 'This one foxed everyone — nobody scored. Redemption next match!',
+    }
+  // You scored nothing (but others did) — honest, no medal.
+  if (points <= 0)
+    return {
+      emoji: '💪',
+      title: 'Tough round',
+      subtitle: 'No points this time — your comeback starts next match.',
+    }
+  // Podium requires actually scoring. Ties share a rank, so a shared 1st all
+  // get gold, etc.
   if (pos === 1) return { emoji: '🥇', title: 'First Place', subtitle: 'You won this round!' }
   if (pos === 2) return { emoji: '🥈', title: 'Second Place', subtitle: 'So close — silver!' }
   if (pos === 3) return { emoji: '🥉', title: 'Third Place', subtitle: 'On the podium!' }
@@ -185,10 +202,20 @@ Deno.serve(async (req) => {
         })
     }
     const matchRanked = [...bestHere.entries()].sort((a, b) => b[1].points - a[1].points)
-    const matchRankByEmail = new Map<string, number>(
-      matchRanked.map(([email], i) => [email, i + 1]),
-    )
+    // Competition ranking: equal points share a rank (so all-zero ⇒ everyone 1st,
+    // and genuine ties aren't split into gold/silver arbitrarily).
+    const matchRankByEmail = new Map<string, number>()
+    let prevPts: number | null = null
+    let prevRank = 0
+    matchRanked.forEach(([email, v], i) => {
+      const rank = prevPts !== null && v.points === prevPts ? prevRank : i + 1
+      matchRankByEmail.set(email, rank)
+      prevPts = v.points
+      prevRank = rank
+    })
     const totalInMatch = matchRanked.length
+    // Whole match scored nothing → ranks are meaningless, no medals.
+    const allZero = totalInMatch > 0 && (matchRanked[0]?.[1].points ?? 0) === 0
 
     // Overall standings BEFORE vs AFTER this match → snapshot-free rank growth.
     // total[email]   = Σ best-points-per-match over all matches (current).
@@ -247,8 +274,9 @@ Deno.serve(async (req) => {
     for (const email of recipients) {
       const prof = profByEmail.get(email)
       const here = bestHere.get(email)
+      const pts = here?.points ?? 0
       const pos = matchRankByEmail.get(email) ?? totalInMatch
-      const b = badge(pos, totalInMatch)
+      const b = badge(pos, totalInMatch, pts, allZero)
       const delta = (rankBefore.get(email) ?? 0) - (rankNow.get(email) ?? 0)
       const g = growthBits(delta)
       const seed = (prof?.avatar_seed as string) || email
@@ -262,9 +290,10 @@ Deno.serve(async (req) => {
         away_emoji: emojiByCode.get(oc.away_code) ?? '🏳️',
         final_score: finalScore,
         your_call: CALL_LABEL(here?.outcome ?? '', oc.home_code, oc.away_code),
-        points: String(here?.points ?? 0),
-        breakdown_rows: breakdownRowsHtml(here?.breakdown ?? [], here?.points ?? 0),
-        match_rank_ordinal: ordinal(pos),
+        points: String(pts),
+        breakdown_rows: breakdownRowsHtml(here?.breakdown ?? [], pts),
+        // No meaningful standings when the whole match scored zero.
+        match_rank_ordinal: allZero ? '—' : ordinal(pos),
         players_in_match: String(totalInMatch),
         badge_emoji: b.emoji,
         badge_title: b.title,
@@ -285,7 +314,11 @@ Deno.serve(async (req) => {
       }
 
       const html = render(tpl, vars)
-      const subject = `${b.emoji} ${oc.home_code} ${finalScore} ${oc.away_code} — you scored ${vars.points} pts!`
+      const scoreline = `${oc.home_code} ${finalScore} ${oc.away_code}`
+      const subject =
+        pts > 0
+          ? `${b.emoji} ${scoreline} — you scored ${pts} pts!`
+          : `${b.emoji} ${scoreline} — tough round, get 'em next time`
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',

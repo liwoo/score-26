@@ -26,13 +26,33 @@ const TAB_LABELS: Record<Tab, string> = {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
+/**
+ * How many leading rows earn a medal. Medals follow *points*, not rank (rank is
+ * always unique even on a tie), and are awarded only while the top scores are
+ * strictly decreasing: the instant two players share a total the podium is
+ * contested, so the badge is dropped for that position and everything below it.
+ * A tie for 1st therefore shows no medals at all.
+ */
+function topMedalCount(standings: LeaderboardEntry[]): number {
+  let count = 0;
+  for (let i = 0; i < Math.min(MEDALS.length, standings.length); i++) {
+    const tiedBelow =
+      i + 1 < standings.length && standings[i + 1].points === standings[i].points;
+    if (tiedBelow) break;
+    count = i + 1;
+  }
+  return count;
+}
+
 function LeaderRow({
   e,
   i,
+  medal,
   highlight = false,
 }: {
   e: LeaderboardEntry;
   i: number;
+  medal: string | null;
   highlight?: boolean;
 }) {
   return (
@@ -45,7 +65,7 @@ function LeaderRow({
       }`}
     >
       <span className="grid w-7 shrink-0 place-items-center font-display text-lg">
-        {MEDALS[e.rank - 1] ?? e.rank}
+        {medal ?? e.rank}
       </span>
       <Avatar seed={e.seed} size={40} />
       <div className="min-w-0 flex-1">
@@ -121,6 +141,8 @@ export function LandingPage() {
   const you = standings.find((e) => e.id === "me");
   // Show the whole field — everyone above and below the player, no cap.
   const visible = standings;
+  // Medals are suppressed when the top is tied (see topMedalCount).
+  const medalCount = topMedalCount(standings);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -227,6 +249,7 @@ export function LandingPage() {
                   key={`${tab}-${activeMatchId}-${e.id}`}
                   e={e}
                   i={i}
+                  medal={i < medalCount ? MEDALS[i] : null}
                   highlight={e.id === "me"}
                 />
               ))
