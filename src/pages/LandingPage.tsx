@@ -89,9 +89,12 @@ export function LandingPage() {
     setHowTo(false);
   };
 
-  // Only matches that have been played have a leaderboard.
+  // Only matches that have been played have a leaderboard. Show the most
+  // recently played match first (leftmost), so the latest results lead.
   const { data: playedIds = [] } = useLeaderboardMatchIds();
-  const playedMatches = matches.filter((m) => playedIds.includes(m.id));
+  const playedMatches = matches
+    .filter((m) => playedIds.includes(m.id))
+    .sort((a, b) => +new Date(b.kickoff) - +new Date(a.kickoff));
   const activeMatchId =
     matchId && playedIds.includes(matchId) ? matchId : (playedMatches[0]?.id ?? null);
 
