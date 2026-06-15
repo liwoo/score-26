@@ -17,6 +17,8 @@ const POSITION_ORDER: Record<Player['position'], number> = {
   FWD: 3,
 }
 
+const SQUAD_QUERY_VERSION = 'v2-position-order'
+
 type Row = {
   id: number
   number: number | null
@@ -55,7 +57,7 @@ function sortByPositionThenNumber(players: Player[]): Player[] {
  */
 export function useSquad(fifaCode: string | undefined) {
   return useQuery({
-    queryKey: ['squad', fifaCode],
+    queryKey: ['squad', SQUAD_QUERY_VERSION, fifaCode],
     enabled: !!fifaCode,
     staleTime: Infinity,
     gcTime: Infinity,
