@@ -1,7 +1,8 @@
 // send-comeback-emails — re-engagement "We miss you / things are heating up".
 //
-// Audience (default): players with an account who have predicted before but
-// predicted NONE of the last 3 kicked-off matches (lapsed). Each gets a
+// Audience (default): players who predicted before but have since sat out at
+// least CHURN_AFTER_MISSED kicked-off matches (lapsed). Predicting an upcoming
+// match resets that to 0, so new/active players are never targeted. Each gets a
 // personal `missed_games` = matches kicked off since their last prediction.
 //
 // Pass { "preview_to": "you@example.com" } to send ONE example to that address
@@ -42,6 +43,34 @@ const mwTime = (utcIso: string): string => {
 
 // Don't re-nag a player who got a comeback email within this window.
 const SUPPRESS_DAYS = 6
+
+// Churned = at least this many matches have kicked off since their last
+// prediction. (Predicting an UPCOMING match resets this to 0, so brand-new /
+// active players are never "we miss you" targets.)
+const CHURN_AFTER_MISSED = 3
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** POST one email to Resend, retrying once after a 429 rate-limit. */
+async function resendSend(
+  key: string,
+  payload: { from: string; to: string[]; subject: string; html: string },
+): Promise<{ ok: boolean; error?: string }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (res.ok) return { ok: true }
+    if (res.status === 429 && attempt === 0) {
+      await sleep(1100)
+      continue
+    }
+    return { ok: false, error: `${res.status} ${await res.text()}` }
+  }
+  return { ok: false, error: 'unreachable' }
+}
 
 Deno.serve(async (req) => {
   try {
@@ -103,11 +132,13 @@ Deno.serve(async (req) => {
           next_match_url: APP,
         }
 
-    // Current leader (social proof).
+    // Current leader (social proof) — by points, not stored rank (new signups
+    // can be seated before a recompute re-ranks them).
     const { data: lead } = await db
       .from('leaderboard')
       .select('username, points')
       .eq('scope', 'all')
+      .order('points', { ascending: false })
       .order('rank', { ascending: true })
       .limit(1)
       .maybeSingle()
@@ -120,11 +151,6 @@ Deno.serve(async (req) => {
       (allMatches ?? []).map((m) => [m.id as number, new Date(m.kickoff_utc as string).getTime()]),
     )
     const startedCount = [...kickoffById.values()].filter((k) => k < nowMs).length
-    const last3 = (allMatches ?? [])
-      .filter((m) => (kickoffById.get(m.id as number) ?? Infinity) < nowMs)
-      .sort((a, b) => (kickoffById.get(b.id as number)! - kickoffById.get(a.id as number)!))
-      .slice(0, 3)
-      .map((m) => m.id as number)
 
     const { data: allSubs } = await db.from('submissions').select('email, match_id')
     const subsByEmail = new Map<string, Set<number>>()
@@ -149,16 +175,11 @@ Deno.serve(async (req) => {
     if (previewTo) {
       recipients = [previewTo]
     } else {
-      const playedLast3 = new Set(
-        (allSubs ?? [])
-          .filter((s) => last3.includes(s.match_id as number))
-          .map((s) => s.email as string),
-      )
       const everPlayed = new Set((allSubs ?? []).map((s) => s.email as string))
       const { data: profilesAll } = await db.from('profiles').select('email')
       const lapsed = (profilesAll ?? [])
         .map((p) => p.email as string)
-        .filter((e) => everPlayed.has(e) && !playedLast3.has(e))
+        .filter((e) => everPlayed.has(e) && missedSince(e) >= CHURN_AFTER_MISSED)
       // Drop anyone already nudged within the suppression window.
       const cutoff = new Date(nowMs - SUPPRESS_DAYS * 86400_000).toISOString()
       const { data: recent } = await db
@@ -203,16 +224,10 @@ Deno.serve(async (req) => {
         : 'the next match'
       const subject = `👋 We miss you, ${vars.player_name} — ${matchup} is coming up`
 
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${RESEND_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from: FROM, to: [email], subject, html }),
-      })
-      if (res.ok) sent.push(email)
-      else failed.push({ email, error: `${res.status} ${await res.text()}` })
+      const r = await resendSend(RESEND_KEY, { from: FROM, to: [email], subject, html })
+      if (r.ok) sent.push(email)
+      else failed.push({ email, error: r.error ?? 'send failed' })
+      await sleep(250) // throttle — Resend caps at 5 requests/second
     }
 
     // Record real sends so the next batch skips them (preview never records).

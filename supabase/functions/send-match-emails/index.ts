@@ -92,13 +92,36 @@ function render(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_m, k) => vars[k] ?? '')
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** POST one email to Resend, retrying once after a 429 rate-limit. */
+async function resendSend(
+  key: string,
+  payload: { from: string; to: string[]; subject: string; html: string },
+): Promise<{ ok: boolean; error?: string }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (res.ok) return { ok: true }
+    if (res.status === 429 && attempt === 0) {
+      await sleep(1100)
+      continue
+    }
+    return { ok: false, error: `${res.status} ${await res.text()}` }
+  }
+  return { ok: false, error: 'unreachable' }
+}
+
 // Friendlier wording for the email's "how you scored" lines.
 const friendlyLine = (label: string): string =>
   label
     .replace(/ \((home|away)\)/g, '')
     .replace('Goal scorer', 'Correct scorer')
     .replace('Goal assist', 'Correct assister')
-    .replace('Correct goal distribution', 'Right goal spread')
+    .replace('Correct goal spread', 'Right goal spread')
     .replace('Correct number of goals', 'Right number of goals')
     .replace('Correct outcome', 'Right result')
 
@@ -320,19 +343,10 @@ Deno.serve(async (req) => {
           ? `${b.emoji} ${scoreline} — you scored ${pts} pts!`
           : `${b.emoji} ${scoreline} — tough round, get 'em next time`
 
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${RESEND_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from: FROM, to: [email], subject, html }),
-      })
-      if (res.ok) {
-        sent.push(email)
-      } else {
-        failed.push({ email, error: `${res.status} ${await res.text()}` })
-      }
+      const r = await resendSend(RESEND_KEY, { from: FROM, to: [email], subject, html })
+      if (r.ok) sent.push(email)
+      else failed.push({ email, error: r.error ?? 'send failed' })
+      await sleep(250) // throttle — Resend caps at 5 requests/second
     }
 
     // Flip email_sent for everyone we successfully emailed.
