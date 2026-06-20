@@ -5,11 +5,12 @@
  * Rubric (per submission, scored against the final match result):
  *   • Correct outcome (W/L/score-draw/goalless), any score ........... 5
  *   • Correct total number of goals in the match .................... 3
- *   • Correct goal distribution, ignoring which side (e.g. 2–0≡0–2) .. 5
+ *   • Correct goal spread — exact team-by-team scoring sequence over time .. 5
  *   • Exact scoreline (correct distribution AND sides) .............. 10
  *   • Each goal predicted in the correct time bracket (per side) ..... 5
  *   • Each goal's scorer predicted correctly ........................ 5
- *   • Each goal's assister predicted correctly ...................... 5
+ *   • Each correctly-named assister (any goal that had one) ......... 5
+ *   • Scorer + assister of the same goal both right (combo bonus) ... 5
  *   • Possession within 5 percentage points ........................ 10
  *   • Possession within 10 percentage points (tier, else) ........... 5
  *   • Total shots within 2, per team ................................ 7
@@ -66,6 +67,7 @@ export const POINTS = {
   goalTiming: 5,
   goalScorer: 5,
   goalAssister: 5,
+  scorerAssistCombo: 5, // bonus for nailing scorer AND assister of the same goal
   ownGoal: 10, // correctly calling a goal is an own goal
   possessionTight: 10, // within 5 pts
   possessionClose: 5, // within 10 pts
@@ -74,9 +76,48 @@ export const POINTS = {
   perfect: 50,
 } as const
 
-const sortedPair = (a: number, b: number) => (a <= b ? [a, b] : [b, a])
+/**
+ * The chronological sequence of scoring sides as a string of 'h'/'a' — the goal
+ * spread. Ordered by time bucket; order within a single bucket is canonicalised
+ * (away before home) so same-bucket goals don't cause false mismatches.
+ * Two predictions match the spread only if this string is identical (so a 1–1
+ * where home scores first ≠ a 1–1 where away scores first).
+ */
+const sideSequence = (goals: GoalFact[]): string =>
+  goals
+    .slice()
+    .sort((x, y) => x.bucket - y.bucket || x.side.localeCompare(y.side))
+    .map((x) => x.side[0])
+    .join('')
 
-type Components = { timing: number; scorer: number; assister: number; ownGoal: number }
+/** Number of elements common to both multisets. */
+function multisetIntersect<T>(a: T[], b: T[]): number {
+  const counts = new Map<T, number>()
+  for (const x of a) counts.set(x, (counts.get(x) ?? 0) + 1)
+  let n = 0
+  for (const x of b) {
+    const c = counts.get(x) ?? 0
+    if (c > 0) {
+      counts.set(x, c - 1)
+      n++
+    }
+  }
+  return n
+}
+
+/** Real assister player ids (excludes solo goals and own goals). */
+const assisters = (goals: GoalFact[]): number[] =>
+  goals.filter((g) => !g.ownGoal && g.assistId != null).map((g) => g.assistId as number)
+
+/** "scorer:assister" keys for goals with BOTH a real scorer and assister. */
+const scorerAssistPairs = (goals: GoalFact[]): string[] =>
+  goals
+    .filter((g) => !g.ownGoal && g.scorerId != null && g.assistId != null)
+    .map((g) => `${g.scorerId}:${g.assistId}`)
+
+// Timing / scorer / own-goal are matched per goal (optimal assignment). Assists
+// are scored separately, match-wide.
+type Components = { timing: number; scorer: number; ownGoal: number }
 
 /** Value of pairing one predicted goal with one actual goal (same side). */
 function pairValue(p: GoalFact, a: GoalFact): Components {
@@ -89,11 +130,6 @@ function pairValue(p: GoalFact, a: GoalFact): Components {
         : 0,
     // Own goal correctly called (both predicted and actual are own goals).
     ownGoal: p.ownGoal && a.ownGoal ? POINTS.ownGoal : 0,
-    // Assist points require a real assister named correctly (own goals have none).
-    assister:
-      !a.ownGoal && a.assistId != null && p.assistId === a.assistId
-        ? POINTS.goalAssister
-        : 0,
   }
 }
 
@@ -104,11 +140,11 @@ function pairValue(p: GoalFact, a: GoalFact): Components {
  */
 function matchSide(preds: GoalFact[], actuals: GoalFact[]): Components {
   const memo = new Map<string, Components & { total: number }>()
-  const value = (c: Components) => c.timing + c.scorer + c.assister + c.ownGoal
+  const value = (c: Components) => c.timing + c.scorer + c.ownGoal
 
   function go(i: number, used: number): Components & { total: number } {
     if (i === preds.length)
-      return { timing: 0, scorer: 0, assister: 0, ownGoal: 0, total: 0 }
+      return { timing: 0, scorer: 0, ownGoal: 0, total: 0 }
     const key = `${i}|${used}`
     const cached = memo.get(key)
     if (cached) return cached
@@ -123,7 +159,6 @@ function matchSide(preds: GoalFact[], actuals: GoalFact[]): Components {
       const cand = {
         timing: v.timing + rest.timing,
         scorer: v.scorer + rest.scorer,
-        assister: v.assister + rest.assister,
         ownGoal: v.ownGoal + rest.ownGoal,
         total: value(v) + rest.total,
       }
@@ -134,7 +169,7 @@ function matchSide(preds: GoalFact[], actuals: GoalFact[]): Components {
   }
 
   const r = go(0, 0)
-  return { timing: r.timing, scorer: r.scorer, assister: r.assister, ownGoal: r.ownGoal }
+  return { timing: r.timing, scorer: r.scorer, ownGoal: r.ownGoal }
 }
 
 /** Canonical key for a goal, for exact-match (perfect) comparison. */
@@ -167,16 +202,17 @@ export function scoreSubmission(
   if (predTotal === resTotal)
     add('goalCount', 'Correct number of goals', POINTS.goalCount)
 
-  // 3. Distribution (unordered) & 4. exact scoreline (ordered)
-  const [ph, pa] = sortedPair(pred.homeScore, pred.awayScore)
-  const [rh, ra] = sortedPair(result.homeScore, result.awayScore)
-  if (ph === rh && pa === ra)
-    add('distribution', 'Correct goal distribution', POINTS.distribution)
+  // 3. Goal spread — the exact chronological team-by-team sequence of goals
+  //    (e.g. home-then-away ≠ away-then-home for a 1–1). Needs goal placements,
+  //    so a scoreline-only prediction can't earn it.
+  if (sideSequence(pred.goals) === sideSequence(result.goals))
+    add('distribution', 'Correct goal spread', POINTS.distribution)
+  // 4. Exact scoreline (final ordered numbers)
   const exact =
     pred.homeScore === result.homeScore && pred.awayScore === result.awayScore
   if (exact) add('exactScore', 'Exact scoreline', POINTS.exactScore)
 
-  // 5–7. Goal timing / scorer / assister, matched per side
+  // 5–6. Goal timing / scorer (+ own goals), matched per side (optimal pairing).
   let goalsPerfect = true
   for (const side of ['home', 'away'] as const) {
     const p = pred.goals.filter((g) => g.side === side)
@@ -188,12 +224,24 @@ export function scoreSubmission(
       add(`scorer-${side}`, `Goal scorer ×${c.scorer / POINTS.goalScorer} (${side})`, c.scorer)
     if (c.ownGoal)
       add(`og-${side}`, `Own goal ×${c.ownGoal / POINTS.ownGoal} (${side})`, c.ownGoal)
-    if (c.assister)
-      add(`assist-${side}`, `Goal assist ×${c.assister / POINTS.goalAssister} (${side})`, c.assister)
     if (!goalsIdentical(p, a)) goalsPerfect = false
   }
 
-  // 8. Possession & 9. shots — only when the player called a goalless draw.
+  // 7. Assisters — decoupled from goal pairing: any correctly-named assister of
+  //    a goal that actually had one (match-wide, multiset over player ids).
+  const assistHits = multisetIntersect(assisters(pred.goals), assisters(result.goals))
+  if (assistHits > 0)
+    add('assist', `Correct assister ×${assistHits}`, assistHits * POINTS.goalAssister)
+
+  // 8. Combo bonus — nailing BOTH the scorer and assister of the same goal.
+  const comboHits = multisetIntersect(
+    scorerAssistPairs(pred.goals),
+    scorerAssistPairs(result.goals),
+  )
+  if (comboHits > 0)
+    add('combo', `Scorer + assister combo ×${comboHits}`, comboHits * POINTS.scorerAssistCombo)
+
+  // 9. Possession & 10. shots — only when the player called a goalless draw.
   let statsPerfect = true
   if (pred.outcome === 'goalless-draw' && pred.possessionHome != null) {
     const diff = Math.abs(pred.possessionHome - result.possessionHome)
@@ -217,7 +265,7 @@ export function scoreSubmission(
     }
   }
 
-  // 10. Perfect bonus — exact scoreline, every goal reconstructed exactly, and
+  // 11. Perfect bonus — exact scoreline, every goal reconstructed exactly, and
   // (for a goalless call) possession & shots in the top tier.
   const perfect = exact && goalsPerfect && (pred.outcome !== 'goalless-draw' || statsPerfect)
   if (perfect) add('perfect', 'Perfect prediction!', POINTS.perfect)

@@ -54,19 +54,47 @@ describe('scoreSubmission', () => {
     expect(scoreSubmission(p, r).total).toBe(23)
   })
 
-  test('distribution but wrong sides (2-0 vs 0-2)', () => {
+  test('2-0 vs 0-2: count only — spread differs (hh vs aa)', () => {
     const p = pred({ outcome: 'home', homeScore: 2, awayScore: 0, goals: [g('home', 1, 1), g('home', 2, 2)] })
     const r = result({ outcome: 'away', homeScore: 0, awayScore: 2, goals: [g('away', 5, 50), g('away', 6, 51)] })
-    // 3 count + 5 distribution (outcome wrong, not exact)
-    expect(scoreSubmission(p, r).total).toBe(8)
+    // 3 count only (outcome wrong, sequence hh≠aa, not exact)
+    expect(scoreSubmission(p, r).total).toBe(3)
+  })
+
+  test('goal spread: correct team order earns it (1-1, home then away)', () => {
+    const p = pred({ outcome: 'score-draw', homeScore: 1, awayScore: 1, goals: [g('home', 1), g('away', 3)] })
+    const r = result({ outcome: 'score-draw', homeScore: 1, awayScore: 1, goals: [g('home', 5), g('away', 7)] })
+    // 5 outcome + 3 count + 5 spread (ha==ha) + 10 exact; buckets differ ⇒ no timing/perfect
+    expect(scoreSubmission(p, r).total).toBe(23)
+  })
+
+  test('goal spread: wrong team order forfeits it (1-1, away first vs home first)', () => {
+    const p = pred({ outcome: 'score-draw', homeScore: 1, awayScore: 1, goals: [g('away', 1), g('home', 3)] })
+    const r = result({ outcome: 'score-draw', homeScore: 1, awayScore: 1, goals: [g('home', 1), g('away', 3)] })
+    // 5 outcome + 3 count + 10 exact, but spread ah≠ha ⇒ no 5 = 18
+    expect(scoreSubmission(p, r).total).toBe(18)
   })
 
   test('perfect single-goal win', () => {
     const goal = g('home', 3, 10, 7)
     const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [goal] })
     const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 3, 10, 7)] })
-    // 5+3+5+10 + (5+5+5) + 50 perfect = 88
-    expect(scoreSubmission(p, r).total).toBe(88)
+    // 5+3+5+10 + timing5+scorer5 + assist5 + combo5 + 50 perfect = 93
+    expect(scoreSubmission(p, r).total).toBe(93)
+  })
+
+  test('decoupled assist: correct assister credited even when its goal pairs elsewhere', () => {
+    const p = pred({ outcome: 'home', homeScore: 2, awayScore: 0, goals: [g('home', 1, 10, 7), g('home', 8, 11, 8)] })
+    const r = result({ outcome: 'home', homeScore: 2, awayScore: 0, goals: [g('home', 1, 10, 99), g('home', 8, 11, 7)] })
+    // 23 scoreline + timing10 + scorer10 + assist5 (7 assisted, named); no combo (no scorer+assist pair matches)
+    expect(scoreSubmission(p, r).total).toBe(48)
+  })
+
+  test('scorer + assister combo bonus (wrong minute, so no timing/perfect)', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 5, 10, 7)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 3, 10, 7)] })
+    // 23 + scorer5 + assist5 + combo5 = 38
+    expect(scoreSubmission(p, r).total).toBe(38)
   })
 
   test('right scorer, wrong bracket, no assist', () => {
@@ -115,8 +143,8 @@ describe('scoreSubmission', () => {
       outcome: 'home', homeScore: 2, awayScore: 0,
       goals: [g('home', 1, 10, 7), g('home', 8, 11, null)],
     })
-    // 5+3+5+10 + goal1(5+5+5=15) + goal2(5+5+0=10, no assist) + 50 perfect = 98
-    expect(scoreSubmission(p, r).total).toBe(98)
+    // 5+3+5+10 + timing10 + scorer10 + assist5 (one real assister) + combo5 + 50 = 103
+    expect(scoreSubmission(p, r).total).toBe(103)
   })
 
   test('own goal: perfectly called (10 for OG, not 5)', () => {
