@@ -8,6 +8,8 @@ export type SubmissionRow = {
   possession_home: number | null
   shots_home: number | null
   shots_away: number | null
+  /** Predicted penalty shootout winner (knockout draws only). */
+  penalty_winner: 'home' | 'away' | null
 }
 
 export type GoalRow = {
@@ -25,6 +27,8 @@ export type ResultRow = {
   possession_home: number | null
   shots_home: number | null
   shots_away: number | null
+  /** Actual penalty shootout winner, or null if the match didn't go to penalties. */
+  penalty_winner: 'home' | 'away' | null
 }
 
 const toGoal = (r: GoalRow): GoalFact => ({
@@ -64,6 +68,7 @@ export function predictionFromSubmission(
     possessionHome: sub.possession_home,
     shotsHome: sub.shots_home,
     shotsAway: sub.shots_away,
+    penaltyWinner: sub.penalty_winner ?? null,
   }
 }
 
@@ -76,5 +81,6 @@ export function resultFromRows(res: ResultRow, goals: GoalRow[]): MatchResult {
     possessionHome: res.possession_home ?? 50,
     shotsHome: res.shots_home ?? 0,
     shotsAway: res.shots_away ?? 0,
+    penaltyWinner: res.penalty_winner ?? null,
   }
 }

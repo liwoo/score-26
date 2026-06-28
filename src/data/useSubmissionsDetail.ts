@@ -20,6 +20,7 @@ export type SubmissionRecord = {
   possession_home: number | null
   shots_home: number | null
   shots_away: number | null
+  penalty_winner: 'home' | 'away' | null
   points: number
   created_at: string
   submission_goals: SubmissionGoalRow[]
@@ -37,7 +38,7 @@ export function useMySubmissions(
       const { data, error } = await supabase
         .from('submissions')
         .select(
-          'id, attempt, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, points, created_at, submission_goals(side, bucket, scorer_player_id, assist_player_id, own_goal, seq)',
+          'id, attempt, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, penalty_winner, points, created_at, submission_goals(side, bucket, scorer_player_id, assist_player_id, own_goal, seq)',
         )
         .eq('email', email!)
         .eq('match_id', Number(matchId))
@@ -56,6 +57,7 @@ export type MatchResultRecord = {
   possession_home: number | null
   shots_home: number | null
   shots_away: number | null
+  penalty_winner: 'home' | 'away' | null
 }
 
 export type ResultGoalRow = {
@@ -91,7 +93,7 @@ export function useMatchResult(matchId: string | undefined) {
       const { data, error } = await supabase
         .from('match_results')
         .select(
-          'status, outcome, home_score, away_score, possession_home, shots_home, shots_away',
+          'status, outcome, home_score, away_score, possession_home, shots_home, shots_away, penalty_winner',
         )
         .eq('match_id', Number(matchId))
         .maybeSingle()

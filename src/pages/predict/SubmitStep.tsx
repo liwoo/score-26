@@ -218,6 +218,15 @@ export function SubmitStep() {
               Honours even — nice and risky. 🤝
             </p>
           )}
+          {match.knockout && isDraw && state.penaltyWinner && (
+            <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border-2 border-ink/10 bg-grape/10 px-3 py-2 text-center text-sm font-bold text-ink/70">
+              <span className="text-lg">🥅</span>
+              <span>
+                {(state.penaltyWinner === 'home' ? match.home : match.away).name}{' '}
+                to win on penalties
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Auth + quota */}

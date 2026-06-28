@@ -52,6 +52,8 @@ type State = {
   /** Total shots predicted for each side. */
   shotsHome: number
   shotsAway: number
+  /** Knockout draws only — predicted penalty shootout winner. */
+  penaltyWinner: Side | null
 }
 
 type Action =
@@ -65,6 +67,7 @@ type Action =
   | { type: 'setPossession'; home: number }
   | { type: 'setShotsHome'; n: number }
   | { type: 'setShotsAway'; n: number }
+  | { type: 'setPenaltyWinner'; side: Side }
   | { type: 'reset' }
 
 const initial: State = {
@@ -75,6 +78,7 @@ const initial: State = {
   possessionHome: 50,
   shotsHome: 8,
   shotsAway: 7,
+  penaltyWinner: null,
 }
 
 function buildGoals(state: State): GoalPick[] {
@@ -152,6 +156,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, shotsHome: action.n }
     case 'setShotsAway':
       return { ...state, shotsAway: action.n }
+    case 'setPenaltyWinner':
+      return { ...state, penaltyWinner: action.side }
     case 'reset':
       return initial
     default:
@@ -182,6 +188,7 @@ type PredictionContextValue = {
   setPossession: (home: number) => void
   setShotsHome: (n: number) => void
   setShotsAway: (n: number) => void
+  setPenaltyWinner: (side: Side) => void
   reset: () => void
 }
 
@@ -277,6 +284,7 @@ export function PredictionProvider({
       setPossession: (home) => dispatch({ type: 'setPossession', home }),
       setShotsHome: (n) => dispatch({ type: 'setShotsHome', n }),
       setShotsAway: (n) => dispatch({ type: 'setShotsAway', n }),
+      setPenaltyWinner: (side) => dispatch({ type: 'setPenaltyWinner', side }),
       reset: () => dispatch({ type: 'reset' }),
     }
   }, [state, match])

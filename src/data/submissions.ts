@@ -9,6 +9,7 @@ type PredictionState = {
   possessionHome: number
   shotsHome: number
   shotsAway: number
+  penaltyWinner: 'home' | 'away' | null
   goals: Array<{
     side: 'home' | 'away'
     bucket: number | null
@@ -69,6 +70,12 @@ export async function saveSubmission(
       ? state.loserGoals
       : null
 
+  // Penalty winner only applies to a knockout draw (the only result that goes
+  // to a shootout). Drop it otherwise so stale picks can't be scored.
+  const isDraw =
+    state.outcome === 'score-draw' || state.outcome === 'goalless-draw'
+  const penaltyWinner = match.knockout && isDraw ? state.penaltyWinner : null
+
   const { data: sub, error: subErr } = await supabase
     .from('submissions')
     .insert({
@@ -82,6 +89,7 @@ export async function saveSubmission(
         state.outcome === 'goalless-draw' ? state.possessionHome : null,
       shots_home: state.outcome === 'goalless-draw' ? state.shotsHome : null,
       shots_away: state.outcome === 'goalless-draw' ? state.shotsAway : null,
+      penalty_winner: penaltyWinner,
     })
     .select('id')
     .single()
