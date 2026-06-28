@@ -6,6 +6,13 @@ import { getTeam } from './teams'
 export const LOCK_MINUTES = 10
 
 /**
+ * Predictions for the first knockout game stay open until this many minutes
+ * *after* kickoff (negative = into the game). All other fixtures close
+ * `LOCK_MINUTES` before kickoff.
+ */
+export const FIRST_KNOCKOUT_LOCK_MINUTES = -30
+
+/**
  * IANA timezone per stadium id. The source data stores kickoff as the venue's
  * local wall-clock time (US/Canada/Mexico), so we need the venue tz to recover
  * the true UTC instant and then display it in the user's own locale.
@@ -62,21 +69,45 @@ function venueLocalToUtcIso(naive: string, tz: string): string {
 }
 
 /**
+ * Id of the first knockout fixture — the non-group match with the earliest
+ * kickoff. Computed from the schedule so it stays correct if fixtures change.
+ */
+const FIRST_KNOCKOUT_ID: string | null = (() => {
+  let firstId: string | null = null
+  let firstUtc = Infinity
+  for (const m of WC_MATCHES) {
+    if (m.type === 'group' || !m.kickoff) continue
+    const tz = STADIUM_TZ[m.stadiumId] ?? 'America/New_York'
+    const utc = +new Date(venueLocalToUtcIso(m.kickoff, tz))
+    if (utc < firstUtc) {
+      firstUtc = utc
+      firstId = String(m.id)
+    }
+  }
+  return firstId
+})()
+
+/** Minutes before kickoff that predictions close for a given match. */
+function lockMinutesFor(match: Pick<Match, 'id'>): number {
+  return match.id === FIRST_KNOCKOUT_ID ? FIRST_KNOCKOUT_LOCK_MINUTES : LOCK_MINUTES
+}
+
+/**
  * Derive live status from the kickoff time so the demo always shows a believable
  * mix of open / locked / live / finished matches.
  */
-export function statusOf(match: Pick<Match, 'kickoff'>): MatchStatus {
+export function statusOf(match: Pick<Match, 'id' | 'kickoff'>): MatchStatus {
   const diffMin = (new Date(match.kickoff).getTime() - Date.now()) / 60_000
-  if (diffMin > LOCK_MINUTES) return 'open'
+  if (diffMin > lockMinutesFor(match)) return 'open'
   if (diffMin > 0) return 'locked'
   if (diffMin > -110) return 'live'
   return 'finished'
 }
 
 /** Minutes until predictions lock (negative once locked). */
-export function minutesUntilLock(match: Pick<Match, 'kickoff'>): number {
+export function minutesUntilLock(match: Pick<Match, 'id' | 'kickoff'>): number {
   return Math.round(
-    (new Date(match.kickoff).getTime() - Date.now()) / 60_000 - LOCK_MINUTES,
+    (new Date(match.kickoff).getTime() - Date.now()) / 60_000 - lockMinutesFor(match),
   )
 }
 
@@ -108,7 +139,7 @@ function build(wc: WcMatch): Match | null {
     venue: stadium ? `${stadium.name}, ${stadium.city}` : 'Venue TBD',
     group: wc.type === 'group' ? `Group ${wc.group}` : (STAGE_LABEL[wc.type] ?? wc.group),
     knockout: wc.type !== 'group',
-    status: statusOf({ kickoff }),
+    status: statusOf({ id: String(wc.id), kickoff }),
   }
 }
 
