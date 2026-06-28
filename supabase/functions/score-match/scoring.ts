@@ -30,7 +30,7 @@ export type Outcome = 'home' | 'away' | 'score-draw' | 'goalless-draw'
 
 export type GoalFact = {
   side: 'home' | 'away'
-  /** Timeline bracket 0–9 (0–10', …, 90'+). */
+  /** Timeline bracket 0–11 (0–10', …, 90'+, then ET 90–105' and ET 105–120'). */
   bucket: number
   /** Player id, or null. */
   scorerId: number | null

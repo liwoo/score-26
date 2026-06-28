@@ -30,15 +30,26 @@ type ScorerEntry = {
   min?: number | null
   assist_no?: number | null
   own_goal?: boolean
+  /** Extra-time half: 1 = ET 90–105' (bucket 10), 2 = ET 105–120' (bucket 11). */
+  et?: number | null
 }
 type CalcEntry = { email: string; calculated: boolean; email_sent: boolean }
 
-/** Match minute → timeline bucket (0–10'=0 … 80–90'=8, 90'+=9). */
+/** Regulation match minute → timeline bucket (0–10'=0 … 80–90'=8, 90'+ incl. stoppage=9). */
 const minToBucket = (min: number): number => {
   if (!Number.isFinite(min) || min < 0) return 0
   if (min >= 90) return 9
   return Math.floor(min / 10)
 }
+
+/**
+ * Timeline bucket for a recorded goal. Extra time can't be inferred from the
+ * minute (regulation stoppage is also entered as 90+), so it's flagged
+ * explicitly per goal: et 1 → ET first half (10), et 2 → ET second half (11).
+ * Otherwise the minute maps to a regulation bucket (0–9).
+ */
+const bucketOf = (g: ScorerEntry): number =>
+  g.et === 1 ? 10 : g.et === 2 ? 11 : minToBucket(Number(g.min))
 
 const outcomeOf = (home: number, away: number): Outcome =>
   home > away ? 'home' : away > home ? 'away' : home > 0 ? 'score-draw' : 'goalless-draw'
@@ -98,10 +109,10 @@ Deno.serve(async (req) => {
     const toGoals = (arr: ScorerEntry[], side: 'home' | 'away', teamId: number): GoalFact[] =>
       arr.map((g) =>
         g.own_goal
-          ? { side, bucket: minToBucket(Number(g.min)), scorerId: null, assistId: null, ownGoal: true }
+          ? { side, bucket: bucketOf(g), scorerId: null, assistId: null, ownGoal: true }
           : {
               side,
-              bucket: minToBucket(Number(g.min)),
+              bucket: bucketOf(g),
               scorerId: resolve(teamId, g.no),
               assistId: resolve(teamId, g.assist_no),
             },
@@ -146,7 +157,7 @@ Deno.serve(async (req) => {
       ...homeScorers.map((g) => ({
         match_id: matchId,
         side: 'home',
-        bucket: minToBucket(Number(g.min)),
+        bucket: bucketOf(g),
         minute: g.min ?? null,
         scorer_player_id: g.own_goal ? null : resolve(homeTeamId, g.no),
         assist_player_id: g.own_goal ? null : resolve(homeTeamId, g.assist_no),
@@ -155,7 +166,7 @@ Deno.serve(async (req) => {
       ...awayScorers.map((g) => ({
         match_id: matchId,
         side: 'away',
-        bucket: minToBucket(Number(g.min)),
+        bucket: bucketOf(g),
         minute: g.min ?? null,
         scorer_player_id: g.own_goal ? null : resolve(awayTeamId, g.no),
         assist_player_id: g.own_goal ? null : resolve(awayTeamId, g.assist_no),

@@ -33,6 +33,8 @@ export type Match = {
   kickoff: string
   venue: string
   group: string
+  /** Knockout fixture — can go to extra time (unlocks the ET timeline brackets). */
+  knockout: boolean
   status: MatchStatus
 }
 

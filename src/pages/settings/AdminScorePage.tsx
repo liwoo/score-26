@@ -12,12 +12,15 @@ import { useAuth } from '../../features/auth/AuthProvider'
 import { isAdmin } from '../../features/auth/admin'
 
 type Side = 'home' | 'away'
-type GoalRow = { side: Side; no: string; min: string; assistNo: string; ownGoal: boolean }
+/** et: '' = regulation, '1' = ET 90–105', '2' = ET 105–120' (knockout only). */
+type GoalRow = { side: Side; no: string; min: string; assistNo: string; ownGoal: boolean; et: '' | '1' | '2' }
 type ScorerJson = {
   no?: number
   min: number
   assist_no?: number | null
   own_goal?: boolean
+  /** Extra-time half: 1 = ET 90–105', 2 = ET 105–120'. Absent for regulation. */
+  et?: number | null
 }
 
 /** Sentinel <option> value for the scorer dropdown meaning "own goal". */
@@ -71,6 +74,7 @@ export function AdminScorePage() {
         min: String(g.min),
         assistNo: g.assist_no == null ? '' : String(g.assist_no),
         ownGoal: !!g.own_goal,
+        et: g.et === 1 ? '1' : g.et === 2 ? '2' : '',
       }))
     setPrefilledKey(matchId ?? null)
     setGoals([...toRows(existing.home_scorers, 'home'), ...toRows(existing.away_scorers, 'away')])
@@ -81,16 +85,20 @@ export function AdminScorePage() {
 
   const save = useMutation({
     mutationFn: async () => {
+      // Only carry the extra-time half for knockout fixtures (groups never go to ET).
+      const etOf = (g: GoalRow) =>
+        match!.knockout && (g.et === '1' || g.et === '2') ? { et: Number(g.et) } : {}
       const build = (side: Side): ScorerJson[] =>
         goals
           .filter((g) => g.side === side && g.min !== '' && (g.ownGoal || g.no !== ''))
           .map((g) =>
             g.ownGoal
-              ? { min: Number(g.min), own_goal: true }
+              ? { min: Number(g.min), own_goal: true, ...etOf(g) }
               : {
                   no: Number(g.no),
                   min: Number(g.min),
                   assist_no: g.assistNo === '' ? null : Number(g.assistNo),
+                  ...etOf(g),
                 },
           )
       const { error } = await supabase.from('match_outcomes').upsert(
@@ -126,7 +134,7 @@ export function AdminScorePage() {
   const incomplete = goals.some((g) => !filled(g))
 
   const addGoal = (side: Side) =>
-    setGoals((g) => [...g, { side, no: '', min: '', assistNo: '', ownGoal: false }])
+    setGoals((g) => [...g, { side, no: '', min: '', assistNo: '', ownGoal: false, et: '' }])
   const update = (i: number, patch: Partial<GoalRow>) =>
     setGoals((g) => g.map((row, j) => (j === i ? { ...row, ...patch } : row)))
   const remove = (i: number) => setGoals((g) => g.filter((_, j) => j !== i))
@@ -204,6 +212,7 @@ export function AdminScorePage() {
                 row={g}
                 team={teamOf(g.side)}
                 squad={squadOf(g.side)}
+                knockout={match.knockout}
                 onChange={(patch) => update(i, patch)}
                 onRemove={() => remove(i)}
                 onToggleSide={() =>
@@ -305,6 +314,7 @@ function GoalEditor({
   row,
   team,
   squad,
+  knockout,
   onChange,
   onRemove,
   onToggleSide,
@@ -312,6 +322,8 @@ function GoalEditor({
   row: GoalRow
   team: Team
   squad: Player[]
+  /** Knockout fixture — show the extra-time half selector. */
+  knockout: boolean
   onChange: (patch: Partial<GoalRow>) => void
   onRemove: () => void
   onToggleSide: () => void
@@ -368,6 +380,22 @@ function GoalEditor({
             allowNone
           />
         </div>
+      )}
+      {knockout && (
+        <label className="mt-2 block">
+          <span className="block pb-1 text-[10px] font-extrabold uppercase tracking-wide text-ink/45">
+            Period
+          </span>
+          <select
+            value={row.et}
+            onChange={(e) => onChange({ et: e.target.value as GoalRow['et'] })}
+            className="w-full rounded-xl border-2 border-ink/20 bg-cream px-2 py-2 font-bold focus:border-ink focus:outline-none"
+          >
+            <option value="">Normal time (0–90'+)</option>
+            <option value="1">Extra time 1st half (90–105')</option>
+            <option value="2">Extra time 2nd half (105–120')</option>
+          </select>
+        </label>
       )}
     </div>
   )
