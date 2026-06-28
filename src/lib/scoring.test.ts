@@ -134,6 +134,13 @@ describe('scoreSubmission', () => {
     expect(scoreSubmission(p, r).total).toBe(42)
   })
 
+  test('0-0 prediction on a non-0-0 game scores nothing (no possession/shots leak)', () => {
+    const p = pred({ outcome: 'goalless-draw', homeScore: 0, awayScore: 0, possessionHome: 50, shotsHome: 10, shotsAway: 16 })
+    // Game ended 0-4 with identical possession/shots — none of it should count.
+    const r = result({ outcome: 'away', homeScore: 0, awayScore: 4, goals: [g('away', 1, 1), g('away', 2, 2), g('away', 3, 3), g('away', 4, 4)], possessionHome: 50, shotsHome: 10, shotsAway: 16 })
+    expect(scoreSubmission(p, r).total).toBe(0)
+  })
+
   test('two goals both perfectly predicted', () => {
     const p = pred({
       outcome: 'home', homeScore: 2, awayScore: 0,

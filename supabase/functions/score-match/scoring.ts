@@ -22,7 +22,9 @@
  *   • Perfect prediction (everything maxed) — bonus ................ 50
  *
  * Possession & shots are only predicted for a goalless-draw call, so those
- * points are only attainable on a goalless-draw submission.
+ * points are only attainable on a goalless-draw submission — AND only when the
+ * match actually finishes 0–0. Predicting 0–0 on a match that ends otherwise
+ * scores nothing.
  *
  * Penalties: knockout fixtures can't truly draw — a level score after extra
  * time goes to a shootout. A draw prediction therefore carries a "who wins on
@@ -269,9 +271,15 @@ export function scoreSubmission(
   )
     add('penalty', 'Correct penalty shootout winner', POINTS.penaltyWinner)
 
-  // 9. Possession & 10. shots — only when the player called a goalless draw.
+  // 9. Possession & 10. shots — only when the player called a goalless draw AND
+  // the match actually finished 0–0. A 0–0 call on any other scoreline scores
+  // nothing (every category above already fails for it).
   let statsPerfect = true
-  if (pred.outcome === 'goalless-draw' && pred.possessionHome != null) {
+  if (
+    pred.outcome === 'goalless-draw' &&
+    result.outcome === 'goalless-draw' &&
+    pred.possessionHome != null
+  ) {
     const diff = Math.abs(pred.possessionHome - result.possessionHome)
     if (diff <= 5) add('possession', 'Possession within 5%', POINTS.possessionTight)
     else if (diff <= 10) add('possession', 'Possession within 10%', POINTS.possessionClose)
