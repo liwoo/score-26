@@ -124,6 +124,13 @@ Deno.serve(async (req) => {
     const homeScore = homeScorers.length
     const awayScore = awayScorers.length
     const outcome = outcomeOf(homeScore, awayScore)
+    // Penalty winner only stands when the match actually went to a shootout
+    // (a level scoreline). Ignore it otherwise so it can't be scored.
+    const drawn = outcome === 'score-draw' || outcome === 'goalless-draw'
+    const penaltyWinner: 'home' | 'away' | null =
+      drawn && (oc.penalty_winner === 'home' || oc.penalty_winner === 'away')
+        ? oc.penalty_winner
+        : null
     const result: MatchResult = {
       outcome,
       homeScore,
@@ -132,6 +139,7 @@ Deno.serve(async (req) => {
       possessionHome: oc.home_possession ?? 50,
       shotsHome: oc.home_shots ?? 0,
       shotsAway: oc.away_shots ?? 0,
+      penaltyWinner,
     }
 
     // 3. Mirror into match_results + result_goals (the app's read model).
@@ -146,6 +154,7 @@ Deno.serve(async (req) => {
         possession_home: oc.home_possession,
         shots_home: oc.home_shots,
         shots_away: oc.away_shots,
+        penalty_winner: penaltyWinner,
         finalized_at: now,
       },
       { onConflict: 'match_id' },
@@ -182,7 +191,7 @@ Deno.serve(async (req) => {
     const { data: subs, error: sErr } = await db
       .from('submissions')
       .select(
-        'id, email, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, ' +
+        'id, email, outcome, winner_goals, loser_goals, possession_home, shots_home, shots_away, penalty_winner, ' +
           'submission_goals(side, bucket, scorer_player_id, assist_player_id, own_goal)',
       )
       .eq('match_id', matchId)

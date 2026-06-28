@@ -50,6 +50,7 @@ export function SubmissionDetailPage() {
             possession_home: result.possession_home,
             shots_home: result.shots_home,
             shots_away: result.shots_away,
+            penalty_winner: result.penalty_winner,
           },
           resultGoals,
         )
@@ -96,6 +97,12 @@ export function SubmissionDetailPage() {
         <p className="text-center text-xs font-extrabold uppercase tracking-wider text-ink/40">
           {OUTCOME_LABEL[rec.outcome]}
         </p>
+        {rec.penalty_winner && (
+          <p className="mt-1 text-center text-xs font-bold text-ink/55">
+            🥅 {(rec.penalty_winner === 'home' ? match.home : match.away).code} to
+            win on penalties
+          </p>
+        )}
 
         {rec.outcome === 'goalless-draw' ? (
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">

@@ -189,3 +189,36 @@ describe('scoreSubmission', () => {
     expect(scoreSubmission(p, r).total).toBe(28)
   })
 })
+
+describe('penalty shootout', () => {
+  const drawPred = (penaltyWinner: 'home' | 'away' | null): Prediction =>
+    pred({ outcome: 'score-draw', homeScore: 1, awayScore: 1, goals: [g('home', 2), g('away', 5)], penaltyWinner })
+  const drawResult = (penaltyWinner: 'home' | 'away' | null): MatchResult =>
+    result({ outcome: 'score-draw', homeScore: 1, awayScore: 1, goals: [g('home', 7, 9), g('away', 8, 50)], penaltyWinner })
+
+  test('correct shootout winner adds 5', () => {
+    // outcome 5 + count 3 + spread (ha) 5 + exact 10 + penalty 5 = 28
+    const s = scoreSubmission(drawPred('home'), drawResult('home'))
+    expect(s.total).toBe(28)
+    expect(s.lines.some((l) => l.key === 'penalty')).toBe(true)
+  })
+
+  test('wrong shootout winner scores no penalty points', () => {
+    const s = scoreSubmission(drawPred('away'), drawResult('home'))
+    expect(s.total).toBe(23)
+    expect(s.lines.some((l) => l.key === 'penalty')).toBe(false)
+  })
+
+  test('no shootout in the real match → no penalty points even if predicted', () => {
+    // Predicted a draw + shootout winner, but the match was a home win.
+    const p = drawPred('home')
+    const r = result({ outcome: 'home', homeScore: 2, awayScore: 1, goals: [], penaltyWinner: null })
+    expect(r.penaltyWinner).toBe(null)
+    expect(scoreSubmission(p, r).lines.some((l) => l.key === 'penalty')).toBe(false)
+  })
+
+  test('no penalty prediction → no penalty points even if the match went to penalties', () => {
+    const s = scoreSubmission(drawPred(null), drawResult('home'))
+    expect(s.lines.some((l) => l.key === 'penalty')).toBe(false)
+  })
+})

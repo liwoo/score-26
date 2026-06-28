@@ -10,6 +10,7 @@ const LAYERS: Layer[] = [
   { emoji: '⏱️', title: 'When goals go in', hint: 'Bonus for each goal’s timing' },
   { emoji: '👟', title: 'Scorers & assists', hint: 'Bonus for every name you nail' },
   { emoji: '📊', title: 'Possession & shots', hint: 'Extra points on the tight ones' },
+  { emoji: '🥅', title: 'Penalty shootouts', hint: 'Knockout draw? Call who wins it for +5' },
 ]
 
 export function HowToPlayModal({

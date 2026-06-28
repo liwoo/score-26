@@ -42,7 +42,9 @@ export function AdminScorePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('match_outcomes')
-        .select('home_scorers, away_scorers, home_possession, home_shots, away_shots')
+        .select(
+          'home_scorers, away_scorers, home_possession, home_shots, away_shots, penalty_winner',
+        )
         .eq('match_id', Number(matchId))
         .maybeSingle()
       if (error) throw error
@@ -52,6 +54,7 @@ export function AdminScorePage() {
         home_possession: number | null
         home_shots: number | null
         away_shots: number | null
+        penalty_winner: 'home' | 'away' | null
       } | null
     },
   })
@@ -60,6 +63,7 @@ export function AdminScorePage() {
   const [possessionHome, setPossessionHome] = useState('')
   const [shotsHome, setShotsHome] = useState('')
   const [shotsAway, setShotsAway] = useState('')
+  const [penaltyWinner, setPenaltyWinner] = useState<'' | 'home' | 'away'>('')
   const [confirming, setConfirming] = useState(false)
   const [done, setDone] = useState(false)
   const [prefilledKey, setPrefilledKey] = useState<string | null>(null)
@@ -81,6 +85,7 @@ export function AdminScorePage() {
     setPossessionHome(existing.home_possession == null ? '' : String(existing.home_possession))
     setShotsHome(existing.home_shots == null ? '' : String(existing.home_shots))
     setShotsAway(existing.away_shots == null ? '' : String(existing.away_shots))
+    setPenaltyWinner(existing.penalty_winner ?? '')
   }
 
   const save = useMutation({
@@ -101,16 +106,23 @@ export function AdminScorePage() {
                   ...etOf(g),
                 },
           )
+      const homeGoals = build('home')
+      const awayGoals = build('away')
+      // Penalties only decide a knockout that's level after (extra) time.
+      const drawn = homeGoals.length === awayGoals.length
+      const penalty =
+        match!.knockout && drawn && penaltyWinner !== '' ? penaltyWinner : null
       const { error } = await supabase.from('match_outcomes').upsert(
         {
           match_id: Number(matchId),
           home_code: match!.home.code,
           away_code: match!.away.code,
-          home_scorers: build('home'),
-          away_scorers: build('away'),
+          home_scorers: homeGoals,
+          away_scorers: awayGoals,
           home_possession: possessionHome === '' ? null : Number(possessionHome),
           home_shots: shotsHome === '' ? null : Number(shotsHome),
           away_shots: shotsAway === '' ? null : Number(shotsAway),
+          penalty_winner: penalty,
           status: 'final',
         },
         { onConflict: 'match_id' },
@@ -132,6 +144,9 @@ export function AdminScorePage() {
   const homeCount = goals.filter((g) => g.side === 'home' && filled(g)).length
   const awayCount = goals.filter((g) => g.side === 'away' && filled(g)).length
   const incomplete = goals.some((g) => !filled(g))
+  // A level knockout went to penalties — the admin must record the winner.
+  const knockoutDraw = match.knockout && homeCount === awayCount
+  const needsPenalty = knockoutDraw && penaltyWinner === ''
 
   const addGoal = (side: Side) =>
     setGoals((g) => [...g, { side, no: '', min: '', assistNo: '', ownGoal: false, et: '' }])
@@ -175,10 +190,14 @@ export function AdminScorePage() {
         <PopButton
           variant="grass"
           full
-          disabled={incomplete}
+          disabled={incomplete || needsPenalty}
           onClick={() => setConfirming(true)}
         >
-          {incomplete ? 'Finish each goal first' : 'Submit result'}
+          {incomplete
+            ? 'Finish each goal first'
+            : needsPenalty
+              ? 'Pick the shootout winner'
+              : 'Submit result'}
         </PopButton>
       }
     >
@@ -248,6 +267,37 @@ export function AdminScorePage() {
             <NumField label={`${match.away.code} shots`} value={shotsAway} onChange={setShotsAway} />
           </div>
         </section>
+
+        {/* Penalty shootout — only when a knockout finished level */}
+        {knockoutDraw && (
+          <section>
+            <h2 className="px-1 pb-1 font-display text-lg">Penalty shootout 🥅</h2>
+            <p className="px-1 pb-2 text-xs font-bold text-ink/45">
+              {match.home.code} {homeCount}–{awayCount} {match.away.code} is level —
+              this knockout went to penalties. Record who advanced.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['home', 'away'] as const).map((side) => {
+                const team = teamOf(side)
+                const selected = penaltyWinner === side
+                return (
+                  <button
+                    key={side}
+                    onClick={() => setPenaltyWinner(side)}
+                    className={`flex items-center justify-center gap-2 rounded-2xl border-2 px-3 py-3 font-extrabold ${
+                      selected
+                        ? 'border-ink bg-grass text-white shadow-pop'
+                        : 'border-ink/15 bg-white text-ink/70'
+                    }`}
+                  >
+                    <span className="text-xl">{team.flag}</span>
+                    {team.code} won
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </Screen>
 

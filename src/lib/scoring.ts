@@ -11,6 +11,7 @@
  *   • Each goal's scorer predicted correctly ........................ 5
  *   • Each correctly-named assister (any goal that had one) ......... 5
  *   • Scorer + assister of the same goal both right (combo bonus) ... 5
+ *   • Penalty shootout winner (knockout draws only, binary) ......... 5
  *   • Possession within 5 percentage points ........................ 10
  *   • Possession within 10 percentage points (tier, else) ........... 5
  *   • Total shots within 2, per team ................................ 7
@@ -19,9 +20,18 @@
  *
  * Possession & shots are only predicted for a goalless-draw call, so those
  * points are only attainable on a goalless-draw submission.
+ *
+ * Penalties: knockout fixtures can't truly draw — a level score after extra
+ * time goes to a shootout. A draw prediction therefore carries a "who wins on
+ * penalties" call. It's scored independently of everything else: a flat 5
+ * points if the predicted shootout winner matches the actual one. The points
+ * are only attainable when the real match actually went to penalties.
  */
 
 export type Outcome = 'home' | 'away' | 'score-draw' | 'goalless-draw'
+
+/** Side that wins a penalty shootout (knockout draws), or null for no shootout. */
+export type PenaltyWinner = 'home' | 'away' | null
 
 export type GoalFact = {
   side: 'home' | 'away'
@@ -44,6 +54,8 @@ export type Prediction = {
   possessionHome?: number | null
   shotsHome?: number | null
   shotsAway?: number | null
+  /** Knockout draws only — predicted shootout winner. */
+  penaltyWinner?: PenaltyWinner
 }
 
 export type MatchResult = {
@@ -54,6 +66,8 @@ export type MatchResult = {
   possessionHome: number
   shotsHome: number
   shotsAway: number
+  /** Set only when the match actually went to a penalty shootout. */
+  penaltyWinner?: PenaltyWinner
 }
 
 export type ScoreLine = { key: string; label: string; points: number }
@@ -68,6 +82,7 @@ export const POINTS = {
   goalScorer: 5,
   goalAssister: 5,
   scorerAssistCombo: 5, // bonus for nailing scorer AND assister of the same goal
+  penaltyWinner: 5, // binary: correct shootout winner on a knockout draw
   ownGoal: 10, // correctly calling a goal is an own goal
   possessionTight: 10, // within 5 pts
   possessionClose: 5, // within 10 pts
@@ -240,6 +255,16 @@ export function scoreSubmission(
   )
   if (comboHits > 0)
     add('combo', `Scorer + assister combo ×${comboHits}`, comboHits * POINTS.scorerAssistCombo)
+
+  // 8b. Penalty shootout — knockout draws only. Binary: 5 points if the player's
+  //     predicted shootout winner matches the actual one. Only scorable when the
+  //     match really went to penalties (result.penaltyWinner set).
+  if (
+    pred.penaltyWinner != null &&
+    result.penaltyWinner != null &&
+    pred.penaltyWinner === result.penaltyWinner
+  )
+    add('penalty', 'Correct penalty shootout winner', POINTS.penaltyWinner)
 
   // 9. Possession & 10. shots — only when the player called a goalless draw.
   let statsPerfect = true
