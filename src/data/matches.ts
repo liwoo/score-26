@@ -80,6 +80,16 @@ export function minutesUntilLock(match: Pick<Match, 'kickoff'>): number {
   )
 }
 
+/** Display label for knockout-stage fixtures (group stage uses "Group X"). */
+const STAGE_LABEL: Record<string, string> = {
+  r32: 'Round of 32',
+  r16: 'Round of 16',
+  qf: 'Quarter-final',
+  sf: 'Semi-final',
+  third: 'Third-place play-off',
+  final: 'Final',
+}
+
 function build(wc: WcMatch): Match | null {
   const home = getTeam(wc.homeTeamId)
   const away = getTeam(wc.awayTeamId)
@@ -96,16 +106,18 @@ function build(wc: WcMatch): Match | null {
     away,
     kickoff,
     venue: stadium ? `${stadium.name}, ${stadium.city}` : 'Venue TBD',
-    group: `Group ${wc.group}`,
+    group: wc.type === 'group' ? `Group ${wc.group}` : (STAGE_LABEL[wc.type] ?? wc.group),
+    knockout: wc.type !== 'group',
     status: statusOf({ kickoff }),
   }
 }
 
-// Only group-stage fixtures have both teams known; knockout slots are TBD.
-const GROUP_FIXTURES = WC_MATCHES.filter((m) => m.type === 'group')
+// Group fixtures plus any knockout slots whose two teams are now known. As later
+// rounds are decided (team ids filled in), they automatically become playable.
+const KNOWN_FIXTURES = WC_MATCHES.filter((m) => m.homeTeamId !== 0 && m.awayTeamId !== 0)
 
 export function getMatches(): Match[] {
-  return GROUP_FIXTURES.map(build)
+  return KNOWN_FIXTURES.map(build)
     .filter((m): m is Match => m !== null)
     .sort((a, b) => +new Date(a.kickoff) - +new Date(b.kickoff))
 }

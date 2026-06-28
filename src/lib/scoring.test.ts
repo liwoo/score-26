@@ -174,4 +174,18 @@ describe('scoreSubmission', () => {
     // 23 + timing 5 only = 28
     expect(scoreSubmission(p, r).total).toBe(28)
   })
+
+  test('extra-time winner: goal in ET first half (bucket 10) scored perfectly', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 10, 9)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 10, 9)] })
+    // 23 scoreline + timing 5 + scorer 5 + perfect 50 = 83
+    expect(scoreSubmission(p, r).total).toBe(83)
+  })
+
+  test('extra-time halves are distinct brackets (ET1 vs ET2 = no timing/perfect)', () => {
+    const p = pred({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 10, 9)] })
+    const r = result({ outcome: 'home', homeScore: 1, awayScore: 0, goals: [g('home', 11, 9)] })
+    // 23 + scorer 5 only (wrong ET half → no timing, no perfect) = 28
+    expect(scoreSubmission(p, r).total).toBe(28)
+  })
 })

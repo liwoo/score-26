@@ -16,7 +16,7 @@ import { Ball } from '../../components/Ball'
 import { PopButton } from '../../components/PopButton'
 import { GoalModal } from '../../components/GoalModal'
 import { TimelineGuideModal } from '../../components/TimelineGuideModal'
-import { BUCKETS } from '../../data/timeline'
+import { BUCKETS, bucketsForMatch } from '../../data/timeline'
 import { POINTS } from '../../lib/scoring'
 import { useSquad } from '../../data/useSquad'
 import type { Team } from '../../data/types'
@@ -193,6 +193,9 @@ export function TimelineStep() {
       state.goals.length +
     POINTS.perfect
 
+  // Knockout ties can go to extra time, so they get the two ET brackets too.
+  const timelineBuckets = bucketsForMatch(match.knockout)
+
   const teamOf = (side: Side): Team => (side === 'home' ? match.home : match.away)
 
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id))
@@ -244,9 +247,9 @@ export function TimelineStep() {
         {/* timeline (top = 90'+, bottom = 0') */}
         <div className="no-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-3">
           <p className="pb-1 text-center text-xs font-extrabold uppercase tracking-wider text-coral">
-            ▲ Full time
+            ▲ {match.knockout ? 'Extra time' : 'Full time'}
           </p>
-          {[...BUCKETS].reverse().map((b) => (
+          {[...timelineBuckets].reverse().map((b) => (
             <BucketZone key={b.id} bucketId={b.id} label={b.label}>
               {state.goals
                 .filter((g) => g.bucket === b.id)
