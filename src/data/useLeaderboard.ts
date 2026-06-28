@@ -5,6 +5,14 @@ import type { LeaderboardScope } from './leaderboard'
 
 export type { LeaderboardScope }
 
+/** The signed-in player's own scoped totals (movement = rank change since last recompute). */
+export type MyScore = {
+  points: number
+  hits: number
+  games: number
+  movement: number | null
+}
+
 type Row = {
   rank: number
   username: string
@@ -12,6 +20,8 @@ type Row = {
   avatar_seed: string | null
   points: number
   hits: number
+  games: number
+  prev_rank: number | null
 }
 
 function toEntry(r: Row, i: number): LeaderboardEntry {
@@ -23,6 +33,10 @@ function toEntry(r: Row, i: number): LeaderboardEntry {
     seed: r.avatar_seed ?? r.username,
     points: r.points,
     hits: r.hits,
+    games: r.games,
+    // +ve = climbed; computed from the server rank so it stays correct even
+    // after "You" is merged in client-side and the displayed rank shifts.
+    movement: r.prev_rank == null ? null : r.prev_rank - r.rank,
   }
 }
 
@@ -44,7 +58,7 @@ export function useLeaderboard(
     queryFn: async (): Promise<LeaderboardEntry[]> => {
       let q = supabase
         .from('leaderboard')
-        .select('rank, username, country_iso, avatar_seed, points, hits')
+        .select('rank, username, country_iso, avatar_seed, points, hits, games, prev_rank')
         .eq('scope', scope)
         .order('rank', { ascending: true })
       if (scope === 'match') q = q.eq('match_id', Number(matchId))
@@ -70,16 +84,29 @@ export function useMyScore(
   return useQuery({
     queryKey: ['my-score', scope, scope === 'match' ? matchId : null, email],
     enabled: !!email && (scope !== 'match' || !!matchId),
-    queryFn: async (): Promise<{ points: number; hits: number } | null> => {
+    queryFn: async (): Promise<MyScore | null> => {
       let q = supabase
         .from('leaderboard')
-        .select('points, hits')
+        .select('points, hits, games, rank, prev_rank')
         .eq('scope', scope)
         .eq('email', email!)
       if (scope === 'match') q = q.eq('match_id', Number(matchId))
       const { data, error } = await q.maybeSingle()
       if (error) throw error
-      return (data as { points: number; hits: number } | null) ?? null
+      const r = data as {
+        points: number
+        hits: number
+        games: number
+        rank: number
+        prev_rank: number | null
+      } | null
+      if (!r) return null
+      return {
+        points: r.points,
+        hits: r.hits,
+        games: r.games,
+        movement: r.prev_rank == null ? null : r.prev_rank - r.rank,
+      }
     },
   })
 }

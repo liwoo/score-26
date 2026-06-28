@@ -228,7 +228,8 @@ Deno.serve(async (req) => {
       .eq('match_id', matchId)
     if (csErr) throw csErr
 
-    // Roll the new points into the leaderboard (all / match / day scopes).
+    // Roll the new points into the leaderboard
+    // (all / day / match + knockout / group stage scopes).
     const { error: lbErr } = await db.rpc('recompute_leaderboard', {
       p_match_id: matchId,
     })

@@ -1,6 +1,6 @@
 import type { LeaderboardEntry } from './types'
 
-export type LeaderboardScope = 'all' | 'day' | 'match'
+export type LeaderboardScope = 'knockout' | 'group' | 'match'
 
 /** The signed-in (or guest) player's own row — points come from real data. */
 export type YouConfig = {
@@ -9,6 +9,8 @@ export type YouConfig = {
   country: string
   points: number
   hits: number
+  games: number
+  movement: number | null
 }
 
 /**

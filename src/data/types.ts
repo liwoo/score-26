@@ -49,4 +49,9 @@ export type LeaderboardEntry = {
   points: number
   /** Number of correct predictions, for flavor */
   hits: number
+  /** Matches predicted within this scope — drives points-per-game. */
+  games: number
+  /** Rank change since the last recompute: +n = climbed n places, -n = fell,
+   * 0 = held, null = no prior standing (new entry / first computation). */
+  movement: number | null
 }
