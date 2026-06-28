@@ -39,3 +39,6 @@ scraper/
 
 # Rendered email previews (generated from emails/*.html templates)
 emails/preview.*.html
+
+# Supabase CLI local temp artifacts
+supabase/.temp/

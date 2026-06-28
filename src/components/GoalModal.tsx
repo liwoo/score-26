@@ -39,7 +39,7 @@ export function GoalModal({
   onClose: () => void
 }) {
   const [step, setStep] = useState<Step>('scorer')
-  const { data: squad = [], isLoading } = useSquad(team?.code)
+  const { data: squad = [], isLoading, error } = useSquad(team?.code)
 
   // Reset to the scorer step each time the modal opens (render-time reset, no effect).
   const [wasOpen, setWasOpen] = useState(open)
@@ -170,6 +170,25 @@ export function GoalModal({
               {isLoading && (
                 <li className="px-4 py-8 text-center text-sm font-bold text-ink/40">
                   Loading squad…
+                </li>
+              )}
+
+              {!isLoading && error && (
+                <li className="px-4 py-6 text-center text-sm font-bold text-coral">
+                  Could not load squad right now. Check Supabase connection and try
+                  again.
+                </li>
+              )}
+
+              {!isLoading && !error && squad.length === 0 && (
+                <li className="space-y-1 px-4 py-6 text-center">
+                  <p className="text-sm font-extrabold text-ink">
+                    No squad found for {team.name}.
+                  </p>
+                  <p className="text-xs font-bold text-ink/55">
+                    Import players into Supabase first (Wikipedia squads →
+                    players table).
+                  </p>
                 </li>
               )}
 
